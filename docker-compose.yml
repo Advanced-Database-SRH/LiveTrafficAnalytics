@@ -1,0 +1,30 @@
+services:
+  redis:
+    image: redis:alpine
+    container_name: traffic_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:latest
+    container_name: traffic_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: traffic_qdrant
+    ports:
+      - "6333:6333"   # REST API (Used mainly by Node.js)
+      - "6334:6334"   # gRPC API (Used for high-speed Python insertion)
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+  qdrant_data:

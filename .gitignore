@@ -1,0 +1,40 @@
+# =========================
+# 1. Node.js & React (Client/Server)
+# =========================
+node_modules/
+npm-debug.log
+yarn-error.log
+client/build/
+client/dist/
+
+# =========================
+# 2. Python (Worker)
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.pytest_cache/
+
+# =========================
+# 3. Security & Secrets (CRITICAL)
+# =========================
+.env
+*.pem
+secrets.json
+
+# =========================
+# 4. OS & Editor Files
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# =========================
+# 5. Docker & Databases
+# =========================
+# (Optional: Ignore local volume folders if you mapped them to your project directory instead of Docker's internal storage)
+# mongodb_data/
+# qdrant_data/
