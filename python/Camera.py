@@ -30,9 +30,18 @@ try:
     while True:
         frame = stream.read()
         if frame is None: break
+        frame = cv2.resize(frame, (1280, 720))
         h, w = frame.shape[:2]
 
-        results = model.track(frame, persist=True, verbose=False)
+        # results = model.track(frame, persist=True, verbose=False, conf=0.15, iou=0.4)
+        results = model.track(
+            frame,
+            persist=True,
+            verbose=False,
+            conf=0.15,
+            iou=0.4,
+            classes=[2, 3, 5, 7]   # car, motorcycle, bus, truck
+        )
         boxes = results[0].boxes
         if boxes.id is None: continue
 
