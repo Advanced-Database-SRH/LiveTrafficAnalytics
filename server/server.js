@@ -5,6 +5,7 @@ const { createClient } = require('redis');
 const { QdrantClient } = require('@qdrant/js-client-rest');
 
 const { startRedisConsumer } = require('./src/services/redisConsumer');
+const trafficRoutes = require('./src/routes/trafficRoute');
 
 const app = express();
 app.use(express.json());
@@ -13,6 +14,8 @@ const redisClient = createClient({ url: process.env.REDIS_URL });
 redisClient.on('error', (err) => console.error('Redis Client Error:', err));
 
 const qdrantClient = new QdrantClient({ url: process.env.QDRANT_URL });
+
+app.use('/api/traffic', trafficRoutes);
 
 async function startServer() {
     try {
