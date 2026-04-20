@@ -1,0 +1,170 @@
+import cv2
+import time
+import math
+from vidgear.gears import CamGear
+from ultralytics import YOLO
+from google.colab.patches import cv2_imshow
+from IPython.display import clear_output
+
+# =========================
+# 1. Load Model
+# =========================
+print("Loading YOLOv8 Model...")
+model = YOLO("yolov8n")
+vehicle_classes = [2, 3, 5, 7]
+
+# =========================
+# 2. Start Stream
+# =========================
+youtube_url = "https://www.youtube.com/watch?v=1EiC9bvVGnk"
+options = {"STREAM_RESOLUTION": "720p"}
+stream = CamGear(source=youtube_url, stream_mode=True, logging=False, **options).start()
+
+# =========================
+# 3. Tracking Storage
+# =========================
+vehicle_data = {}
+MAX_MISSING_FRAMES = 10
+MIN_MOVEMENT = 40  # pixels
+
+# Direction counters
+directions_this_20s = {
+    "Up-to-Down": 0,
+    "Down-to-Up": 0,
+    "Left-to-Right": 0,
+    "Right-to-Left": 0
+}
+
+directions_all_time = directions_this_20s.copy()
+
+# =========================
+# 4. Direction Logic (ANGLE BASED)
+# =========================
+def get_direction(sx, sy, lx, ly):
+    dx = lx - sx
+    dy = ly - sy
+
+    distance = math.hypot(dx, dy)
+    if distance < MIN_MOVEMENT:
+        return None  # ignore tiny movement
+
+    angle = math.degrees(math.atan2(dy, dx))
+
+    if -45 <= angle <= 45:
+        return "Left-to-Right"
+    elif angle >= 135 or angle <= -135:
+        return "Right-to-Left"
+    elif 45 < angle < 135:
+        return "Up-to-Down"
+    elif -135 < angle < -45:
+        return "Down-to-Up"
+
+    return None
+
+# =========================
+# 5. Draw Overlay
+# =========================
+def draw_overlay(image):
+    overlay = image.copy()
+    cv2.rectangle(overlay, (850, 10), (1260, 140), (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.6, image, 0.4, 0, image)
+
+    y = 40
+    for k, v in directions_this_20s.items():
+        text = f"{k}: {v}"
+        cv2.putText(image, text, (860, y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        y += 25
+
+# =========================
+# 6. Main Loop
+# =========================
+start_time = time.time()
+
+try:
+    while True:
+        frame = stream.read()
+        if frame is None:
+            break
+
+        results = model.track(
+            frame,
+            persist=True,
+            classes=vehicle_classes,
+            verbose=False
+        )
+
+        if not results or results[0].boxes is None:
+            continue
+
+        boxes = results[0].boxes
+
+        current_ids = set()
+
+        if boxes.id is not None:
+            ids = boxes.id.cpu().tolist()
+            xyxy = boxes.xyxy.cpu().tolist()
+
+            for vid, box in zip(ids, xyxy):
+                cx = (box[0] + box[2]) / 2
+                cy = (box[1] + box[3]) / 2
+
+                current_ids.add(vid)
+
+                if vid not in vehicle_data:
+                    vehicle_data[vid] = {
+                        "start": (cx, cy),
+                        "last": (cx, cy),
+                        "missing": 0
+                    }
+                else:
+                    vehicle_data[vid]["last"] = (cx, cy)
+                    vehicle_data[vid]["missing"] = 0
+
+        # Handle disappeared vehicles
+        to_delete = []
+
+        for vid in vehicle_data:
+            if vid not in current_ids:
+                vehicle_data[vid]["missing"] += 1
+
+                if vehicle_data[vid]["missing"] > MAX_MISSING_FRAMES:
+                    sx, sy = vehicle_data[vid]["start"]
+                    lx, ly = vehicle_data[vid]["last"]
+
+                    direction = get_direction(sx, sy, lx, ly)
+
+                    if direction:
+                        directions_this_20s[direction] += 1
+                        directions_all_time[direction] += 1
+
+                    to_delete.append(vid)
+
+        for vid in to_delete:
+            del vehicle_data[vid]
+
+        # =========================
+        # Reporting every 20s
+        # =========================
+        if time.time() - start_time >= 20:
+            clear_output(wait=True)
+
+            annotated_frame = results[0].plot()
+            draw_overlay(annotated_frame)
+            cv2_imshow(annotated_frame)
+
+            print(f"--- TRAFFIC REPORT @ {time.strftime('%H:%M:%S')} ---")
+            for k in directions_this_20s:
+                print(f"{k:<20} | Last 20s: {directions_this_20s[k]} | Total: {directions_all_time[k]}")
+
+            # Reset window counters
+            for k in directions_this_20s:
+                directions_this_20s[k] = 0
+
+            start_time = time.time()
+
+except KeyboardInterrupt:
+    print("Stopped by user.")
+
+finally:
+    stream.stop()
