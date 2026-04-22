@@ -10,7 +10,8 @@ import redis
 r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
 # --- CONFIGURATION ---
-stream = CamGear(source="https://www.youtube.com/watch?v=1EiC9bvVGnk", stream_mode=True).start()
+options={"STREAM_RESOLUTION": "720p"}
+stream = CamGear(source="https://www.youtube.com/watch?v=1EiC9bvVGnk", stream_mode=True,logging=False, **options).start()
 model = YOLO("yolov8n")
 tracker_data = {}
 BUFFER = 100
@@ -30,7 +31,7 @@ try:
     while True:
         frame = stream.read()
         if frame is None: break
-        frame = cv2.resize(frame, (1280, 720))
+        #frame = cv2.resize(frame, (1280, 720))
         h, w = frame.shape[:2]
 
         # results = model.track(frame, persist=True, verbose=False, conf=0.15, iou=0.4)
