@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const { createClient } = require('redis');
 const { QdrantClient } = require('@qdrant/js-client-rest');
+const { ensureCollections }  = require('./src/services/qdrantService');
 
 const { startRedisConsumer } = require('./src/services/redisConsumer');
 const trafficRoutes = require('./src/routes/trafficRoute');
@@ -29,6 +30,8 @@ async function startServer() {
 
         await qdrantClient.getCollections();
         console.log('Qdrant connected successfully');
+
+        await ensureCollections();
 
         startRedisConsumer(redisClient);
 
