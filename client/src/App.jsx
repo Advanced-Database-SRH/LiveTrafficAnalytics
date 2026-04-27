@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Camera, Car, CloudSun, Gauge, Radio, Activity } from 'lucide-react'
 
 const EVENTS_API = 'http://localhost:5000/api/traffic/events'
 const COUNTS_API = 'http://localhost:5000/api/traffic/counts'
@@ -8,6 +9,12 @@ function App() {
   const [counts, setCounts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const weather = {
+    condition: 'Partly Cloudy',
+    temperature: '18°C',
+    wind: '12 km/h',
+  }
 
   async function fetchTrafficData() {
     try {
@@ -37,7 +44,6 @@ function App() {
   useEffect(() => {
     fetchTrafficData()
     const interval = setInterval(fetchTrafficData, 3000)
-
     return () => clearInterval(interval)
   }, [])
 
@@ -46,12 +52,7 @@ function App() {
   }, [counts])
 
   const vehicleBreakdown = useMemo(() => {
-    const map = {
-      car: 0,
-      bus: 0,
-      truck: 0,
-      motorcycle: 0,
-    }
+    const map = { car: 0, bus: 0, truck: 0, motorcycle: 0 }
 
     counts.forEach((item) => {
       map[item._id] = item.total
@@ -60,189 +61,235 @@ function App() {
     return map
   }, [counts])
 
-  const latestEvent = events[0]
-
   const trafficStatus = useMemo(() => {
     if (totalVehicles < 10) return 'Low'
     if (totalVehicles < 40) return 'Medium'
     return 'High'
   }, [totalVehicles])
 
-  const lastUpdated = latestEvent?.createdAt
-    ? new Date(latestEvent.createdAt).toLocaleTimeString()
-    : 'Waiting...'
-
   const stats = [
     {
       label: 'Total Vehicles',
       value: totalVehicles,
       change: loading ? 'Loading' : 'Live',
-      note: 'stored vehicle events',
+      note: 'Stored vehicle events',
+      icon: Car,
+      color: 'from-blue-500 to-cyan-400',
     },
     {
       label: 'Traffic Density',
       value: trafficStatus,
       change: error ? 'Offline' : 'Live',
-      note: 'based on total count',
+      note: 'Based on current count',
+      icon: Gauge,
+      color: 'from-violet-500 to-fuchsia-500',
     },
     {
-      label: 'Cars',
-      value: vehicleBreakdown.car,
-      change: '+',
-      note: 'detected cars',
-    },
-    {
-      label: 'Last Updated',
-      value: lastUpdated,
-      change: 'Now',
-      note: 'latest event time',
+      label: 'Weather',
+      value: weather.temperature,
+      change: weather.condition,
+      note: `Wind speed: ${weather.wind}`,
+      icon: CloudSun,
+      color: 'from-amber-400 to-orange-500',
     },
   ]
 
   return (
-    <main className="min-h-screen bg-slate-100 text-slate-900 p-5 md:p-8 max-w-[1500px] mx-auto">
-      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-extrabold">
-            Live Traffic Analytics Dashboard
-          </h1>
-          <p className="text-slate-500 mt-2">
-            Real-time vehicle monitoring, traffic density, and historical insights
-          </p>
-        </div>
+    <main className="min-h-screen bg-[#eef3f8] text-slate-950">
+      <div className="mx-auto max-w-[1500px] px-5 py-8 md:px-8">
+        <header className="mb-8 overflow-hidden rounded-[28px] bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 p-8 text-white shadow-2xl">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm text-blue-100">
+                <Radio size={16} />
+                Live monitoring system
+              </div>
 
-        <button className="bg-gradient-to-r from-blue-600 to-violet-600 text-white px-5 py-3 rounded-2xl font-bold shadow-lg hover:scale-105 transition">
-          Export Report
-        </button>
-      </header>
+              <h1 className="max-w-3xl text-4xl font-black tracking-tight md:text-5xl">
+                Live Traffic Analytics Dashboard
+              </h1>
 
-      {error && (
-        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700 font-medium">
-          {error} — start backend on port 5000 and try again.
-        </div>
-      )}
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 md:text-base">
+                Real-time vehicle monitoring, weather conditions, traffic density,
+                and historical insights for smart city traffic analysis.
+              </p>
+            </div>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        {stats.map((item, index) => (
-          <div
-            key={index}
-            className="bg-white border border-gray-200 rounded-2xl shadow-md p-6 hover:shadow-lg transition"
-          >
-            <div className="flex justify-between items-center">
-              <p className="text-gray-500 text-sm">{item.label}</p>
-              <span className="text-green-600 font-semibold text-sm">
-                {item.change}
+            <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur">
+              <p className="text-sm text-slate-300">System status</p>
+              <div className="mt-2 flex items-center gap-2 text-lg font-bold">
+                <span className={`h-3 w-3 rounded-full ${error ? 'bg-red-400' : 'bg-emerald-400'}`} />
+                {error ? 'Frontend Preview' : 'Live Connected'}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {error && (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800">
+            Backend is not connected yet — showing frontend layout with available placeholder data.
+          </div>
+        )}
+
+        <section className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+          {stats.map((item, index) => {
+            const Icon = item.icon
+
+            return (
+              <div
+                key={index}
+                className="group rounded-[24px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70 transition hover:-translate-y-1 hover:shadow-xl"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-500">{item.label}</p>
+                    <h2 className="mt-3 text-4xl font-black tracking-tight text-slate-950">
+                      {item.value}
+                    </h2>
+                  </div>
+
+                  <div className={`rounded-2xl bg-gradient-to-br ${item.color} p-3 text-white shadow-lg`}>
+                    <Icon size={24} />
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                  <p className="text-sm text-slate-400">{item.note}</p>
+                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-600">
+                    {item.change}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </section>
+
+        <section className="mb-6 rounded-[28px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold">Live Camera Feed</h2>
+              <p className="text-sm text-slate-500">YOLO processed traffic stream preview</p>
+            </div>
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-600">
+              Camera 1
+            </span>
+          </div>
+
+          <div className="relative flex h-[420px] items-center justify-center overflow-hidden rounded-[22px] bg-slate-950 text-white">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.28),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.22),_transparent_30%)]" />
+            <div className="absolute left-5 top-5 flex items-center gap-2 rounded-full bg-black/40 px-3 py-1 text-xs backdrop-blur">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              LIVE
+            </div>
+
+            <div className="relative text-center">
+              <Camera className="mx-auto mb-4 text-blue-300" size={52} />
+              <p className="text-xl font-black">Camera Feed</p>
+              <span className="mt-2 block text-sm text-slate-400">
+                YOLO output preview can be connected later
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
+          <div className="rounded-[28px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold">Traffic Overview</h2>
+                <p className="text-sm text-slate-500">Latest event activity trend</p>
+              </div>
+              <span className="text-sm font-medium text-slate-400">Recent events</span>
+            </div>
+
+            <div className="flex h-80 items-end gap-4 rounded-[22px] bg-slate-50 p-5">
+              {events.slice(0, 6).reverse().map((event, index) => (
+                <div
+                  key={event._id || index}
+                  className="flex-1 rounded-t-2xl bg-gradient-to-t from-blue-600 to-cyan-300 shadow-lg shadow-blue-200"
+                  style={{ height: `${30 + (index + 1) * 10}%` }}
+                />
+              ))}
+
+              {events.length === 0 && (
+                <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
+                  No event data yet
+                </div>
+              )}
+            </div>
+
+            <div className="mt-3 flex justify-between text-sm text-slate-400">
+              <span>Old</span>
+              <span>Recent</span>
+            </div>
+          </div>
+
+          <div className="rounded-[28px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold">Vehicle Breakdown</h2>
+                <p className="text-sm text-slate-500">Detected class distribution</p>
+              </div>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-600">
+                Live
               </span>
             </div>
 
-            <h2 className="text-3xl font-bold mt-3">{item.value}</h2>
-
-            <p className="text-gray-400 text-sm mt-1">{item.note}</p>
-          </div>
-        ))}
-      </section>
-
-      <section className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 mb-6">
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold">Traffic Overview</h2>
-            <span className="text-sm text-gray-500">Latest events</span>
-          </div>
-
-          <div className="h-80 flex items-end gap-4 bg-slate-50 rounded-xl p-5">
-            {events.slice(0, 6).reverse().map((event, index) => (
-              <div
-                key={event._id || index}
-                className="flex-1 bg-gradient-to-t from-blue-500 to-cyan-400 rounded-t-xl"
-                style={{ height: `${30 + ((index + 1) * 10)}%` }}
-              ></div>
-            ))}
-
-            {events.length === 0 && (
-              <div className="w-full h-full flex items-center justify-center text-slate-400">
-                No event data yet
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-between text-sm text-gray-400 mt-3">
-            <span>Old</span>
-            <span>Recent</span>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold">Vehicle Breakdown</h2>
-            <span className="text-green-600 font-semibold text-sm">Live</span>
-          </div>
-
-          <div className="w-40 h-40 mx-auto rounded-full bg-gradient-to-tr from-blue-500 to-yellow-400 flex items-center justify-center text-white text-xl font-bold shadow-inner">
-            {trafficStatus}
-          </div>
-
-          <div className="mt-6 space-y-3">
-            <div className="flex justify-between">
-              <span>Cars</span>
-              <strong>{vehicleBreakdown.car}</strong>
+            <div className="mx-auto flex h-44 w-44 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-cyan-400 to-amber-300 text-xl font-black text-white shadow-xl">
+              {trafficStatus}
             </div>
-            <div className="flex justify-between">
-              <span>Buses</span>
-              <strong>{vehicleBreakdown.bus}</strong>
-            </div>
-            <div className="flex justify-between">
-              <span>Trucks</span>
-              <strong>{vehicleBreakdown.truck}</strong>
-            </div>
-            <div className="flex justify-between">
-              <span>Motorcycles</span>
-              <strong>{vehicleBreakdown.motorcycle}</strong>
+
+            <div className="mt-8 space-y-4">
+              {[
+                ['Cars', vehicleBreakdown.car],
+                ['Buses', vehicleBreakdown.bus],
+                ['Trucks', vehicleBreakdown.truck],
+                ['Motorcycles', vehicleBreakdown.motorcycle],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                  <span className="text-sm font-medium text-slate-600">{label}</span>
+                  <strong className="text-slate-950">{value}</strong>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold">Live Camera</h2>
-            <span className="text-gray-400 text-sm">Camera 1</span>
-          </div>
-
-          <div className="h-64 bg-slate-900 text-white rounded-xl flex flex-col items-center justify-center">
-            <p className="text-lg font-bold">Camera Feed</p>
-            <span className="text-gray-400 text-sm">
-              YOLO output preview can be connected later
+        <section className="rounded-[28px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold">Recent Vehicle Events</h2>
+              <p className="text-sm text-slate-500">Latest detections from the traffic pipeline</p>
+            </div>
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-600">
+              Live
             </span>
           </div>
-        </div>
 
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-md p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg font-semibold">Recent Vehicle Events</h2>
-            <span className="text-green-600 text-sm font-semibold">Live</span>
-          </div>
-
-          <ul className="space-y-3 max-h-64 overflow-y-auto">
+          <ul className="max-h-64 space-y-3 overflow-y-auto">
             {events.slice(0, 8).map((event, index) => (
               <li
                 key={event._id || index}
-                className="bg-slate-100 p-3 rounded-xl text-sm"
+                className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 text-sm"
               >
-                <strong>{event.class}</strong> #{event.vehicle_id} entered at{' '}
-                {event.entry_time || 'N/A'} and exited at{' '}
-                {event.exit_time || 'N/A'}
+                <div className="rounded-xl bg-blue-100 p-2 text-blue-600">
+                  <Activity size={18} />
+                </div>
+                <div>
+                  <strong>{event.class}</strong> #{event.vehicle_id} entered at{' '}
+                  {event.entry_time || 'N/A'} and exited at {event.exit_time || 'N/A'}
+                </div>
               </li>
             ))}
 
             {events.length === 0 && (
-              <li className="bg-slate-100 p-3 rounded-xl text-sm text-slate-500">
+              <li className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
                 Waiting for vehicle events from backend...
               </li>
             )}
           </ul>
-        </div>
-      </section>
+        </section>
+      </div>
     </main>
   )
 }
