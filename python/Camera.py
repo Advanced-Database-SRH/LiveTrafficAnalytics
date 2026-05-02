@@ -11,7 +11,8 @@ r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 
 # --- CONFIGURATION ---
 options={"STREAM_RESOLUTION": "720p"}
-stream = CamGear(source="https://www.youtube.com/watch?v=1EiC9bvVGnk", stream_mode=True,logging=False, **options).start()
+stream = CamGear(source="https://www.youtube.com/watch?v=1EiC9bvVGnk", stream_mode=True,logging=False, **options).start() #usa
+#stream = CamGear(source="https://www.youtube.com/watch?v=dfVK7ld38Ys", stream_mode=True,logging=False, **options).start() #japan
 model = YOLO("yolov8n")
 tracker_data = {}
 BUFFER = 100
