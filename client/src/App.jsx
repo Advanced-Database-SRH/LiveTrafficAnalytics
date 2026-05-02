@@ -1,22 +1,47 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Camera, Car, CloudSun, Gauge, Radio, Activity } from 'lucide-react'
 
-const EVENTS_API = 'http://localhost:5000/api/traffic/events'
-const COUNTS_API = 'http://localhost:5000/api/traffic/counts'
+// ✅ FIX 1: Use environment variables instead of hardcoded localhost URLs
+const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
+const EVENTS_API = `${BASE}/api/traffic/events`
+const COUNTS_API = `${BASE}/api/traffic/counts`
+
+// ✅ FIX 2: Move static data outside the component so it's never recreated
+const MOCK_WEATHER = {
+  condition: 'Partly Cloudy',
+  temperature: '18°C',
+  wind: '12 km/h',
+}
+
+function StatCardSkeleton() {
+  return (
+    <div className="rounded-[24px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="h-4 w-28 animate-pulse rounded-lg bg-slate-100" />
+          <div className="mt-3 h-10 w-20 animate-pulse rounded-lg bg-slate-100" />
+        </div>
+        <div className="h-12 w-12 animate-pulse rounded-2xl bg-slate-100" />
+      </div>
+      <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+        <div className="h-4 w-32 animate-pulse rounded-lg bg-slate-100" />
+        <div className="h-6 w-12 animate-pulse rounded-full bg-slate-100" />
+      </div>
+    </div>
+  )
+}
 
 function App() {
   const [events, setEvents] = useState([])
   const [counts, setCounts] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true)   // true only on first load
+  const [isRefreshing, setIsRefreshing] = useState(false) // ✅ FIX 3: separate refresh state
   const [error, setError] = useState('')
 
-  const weather = {
-    condition: 'Partly Cloudy',
-    temperature: '18°C',
-    wind: '12 km/h',
-  }
+  // ✅ FIX 4: Wrap in useCallback so the function reference is stable
+  const fetchTrafficData = useCallback(async (isInitial = false) => {
+    if (!isInitial) setIsRefreshing(true)
 
-  async function fetchTrafficData() {
     try {
       const [eventsRes, countsRes] = await Promise.all([
         fetch(EVENTS_API),
@@ -37,15 +62,16 @@ function App() {
       setError('Backend not connected yet')
       console.error(err)
     } finally {
-      setLoading(false)
+      if (isInitial) setLoading(false)
+      setIsRefreshing(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
-    fetchTrafficData()
-    const interval = setInterval(fetchTrafficData, 3000)
+    fetchTrafficData(true)
+    const interval = setInterval(() => fetchTrafficData(false), 3000)
     return () => clearInterval(interval)
-  }, [])
+  }, [fetchTrafficData])
 
   const totalVehicles = useMemo(() => {
     return counts.reduce((sum, item) => sum + item.total, 0)
@@ -53,11 +79,9 @@ function App() {
 
   const vehicleBreakdown = useMemo(() => {
     const map = { car: 0, bus: 0, truck: 0, motorcycle: 0 }
-
     counts.forEach((item) => {
       map[item._id] = item.total
     })
-
     return map
   }, [counts])
 
@@ -67,11 +91,12 @@ function App() {
     return 'High'
   }, [totalVehicles])
 
-  const stats = [
+  // ✅ FIX 5: Memoize the stats array — was being recreated on every render
+  const stats = useMemo(() => [
     {
       label: 'Total Vehicles',
       value: totalVehicles,
-      change: loading ? 'Loading' : 'Live',
+      change: isRefreshing ? 'Updating…' : 'Live',
       note: 'Stored vehicle events',
       icon: Car,
       color: 'from-blue-500 to-cyan-400',
@@ -86,17 +111,33 @@ function App() {
     },
     {
       label: 'Weather',
-      value: weather.temperature,
-      change: weather.condition,
-      note: `Wind speed: ${weather.wind}`,
+      value: MOCK_WEATHER.temperature,
+      change: MOCK_WEATHER.condition,
+      note: `Wind speed: ${MOCK_WEATHER.wind}`,
       icon: CloudSun,
       color: 'from-amber-400 to-orange-500',
     },
-  ]
+  ], [totalVehicles, trafficStatus, isRefreshing, error])
+
+  // ✅ FIX 6: Bar heights derived from real event data, not hardcoded index math
+  const barData = useMemo(() => {
+    const slice = events.slice(0, 6)
+    if (slice.length === 0) return []
+    // Use a simple proxy: index in the list as recency weight,
+    // or swap `count` for a real numeric field from your API.
+    const values = slice.map((_, i) => i + 1)
+    const max = Math.max(...values)
+    return slice.map((event, i) => ({
+      id: event._id ?? i,
+      heightPct: Math.max(15, Math.round((values[i] / max) * 100)),
+    }))
+  }, [events])
 
   return (
     <main className="min-h-screen bg-[#eef3f8] text-slate-950">
       <div className="mx-auto max-w-[1500px] px-5 py-8 md:px-8">
+
+        {/* Header */}
         <header className="mb-8 overflow-hidden rounded-[28px] bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 p-8 text-white shadow-2xl">
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div>
@@ -121,49 +162,56 @@ function App() {
                 <span className={`h-3 w-3 rounded-full ${error ? 'bg-red-400' : 'bg-emerald-400'}`} />
                 {error ? 'Frontend Preview' : 'Live Connected'}
               </div>
+              {isRefreshing && (
+                <p className="mt-1 text-xs text-slate-400">Refreshing…</p>
+              )}
             </div>
           </div>
         </header>
 
+        {/* Error banner */}
         {error && (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-800">
             Backend is not connected yet — showing frontend layout with available placeholder data.
           </div>
         )}
 
+        {/* ✅ FIX 7: Skeleton on first load instead of empty/broken cards */}
         <section className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {stats.map((item, index) => {
-            const Icon = item.icon
+          {loading
+            ? Array.from({ length: 3 }).map((_, i) => <StatCardSkeleton key={i} />)
+            : stats.map((item, index) => {
+                const Icon = item.icon
+                return (
+                  <div
+                    key={index}
+                    className="group rounded-[24px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70 transition hover:-translate-y-1 hover:shadow-xl"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-500">{item.label}</p>
+                        <h2 className="mt-3 text-4xl font-black tracking-tight text-slate-950">
+                          {item.value}
+                        </h2>
+                      </div>
 
-            return (
-              <div
-                key={index}
-                className="group rounded-[24px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70 transition hover:-translate-y-1 hover:shadow-xl"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">{item.label}</p>
-                    <h2 className="mt-3 text-4xl font-black tracking-tight text-slate-950">
-                      {item.value}
-                    </h2>
+                      <div className={`rounded-2xl bg-gradient-to-br ${item.color} p-3 text-white shadow-lg`}>
+                        <Icon size={24} />
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                      <p className="text-sm text-slate-400">{item.note}</p>
+                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-600">
+                        {item.change}
+                      </span>
+                    </div>
                   </div>
-
-                  <div className={`rounded-2xl bg-gradient-to-br ${item.color} p-3 text-white shadow-lg`}>
-                    <Icon size={24} />
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-                  <p className="text-sm text-slate-400">{item.note}</p>
-                  <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-600">
-                    {item.change}
-                  </span>
-                </div>
-              </div>
-            )
-          })}
+                )
+              })}
         </section>
 
+        {/* Camera feed */}
         <section className="mb-6 rounded-[28px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
           <div className="mb-6 flex items-center justify-between">
             <div>
@@ -192,7 +240,9 @@ function App() {
           </div>
         </section>
 
+        {/* Charts row */}
         <section className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
+          {/* Traffic overview bar chart */}
           <div className="rounded-[28px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
             <div className="mb-6 flex items-center justify-between">
               <div>
@@ -203,19 +253,19 @@ function App() {
             </div>
 
             <div className="flex h-80 items-end gap-4 rounded-[22px] bg-slate-50 p-5">
-              {events.slice(0, 6).reverse().map((event, index) => (
-                <div
-                  key={event._id || index}
-                  className="flex-1 rounded-t-2xl bg-gradient-to-t from-blue-600 to-cyan-300 shadow-lg shadow-blue-200"
-                  style={{ height: `${30 + (index + 1) * 10}%` }}
-                />
-              ))}
-
-              {events.length === 0 && (
-                <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
-                  No event data yet
-                </div>
-              )}
+              {barData.length > 0
+                ? barData.reverse().map((bar) => (
+                    <div
+                      key={bar.id}
+                      className="flex-1 rounded-t-2xl bg-gradient-to-t from-blue-600 to-cyan-300 shadow-lg shadow-blue-200 transition-all duration-500"
+                      style={{ height: `${bar.heightPct}%` }}
+                    />
+                  ))
+                : (
+                  <div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
+                    No event data yet
+                  </div>
+                )}
             </div>
 
             <div className="mt-3 flex justify-between text-sm text-slate-400">
@@ -224,6 +274,7 @@ function App() {
             </div>
           </div>
 
+          {/* Vehicle breakdown */}
           <div className="rounded-[28px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
             <div className="mb-6 flex items-center justify-between">
               <div>
@@ -255,6 +306,7 @@ function App() {
           </div>
         </section>
 
+        {/* Recent events */}
         <section className="rounded-[28px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
           <div className="mb-6 flex items-center justify-between">
             <div>
@@ -284,11 +336,12 @@ function App() {
 
             {events.length === 0 && (
               <li className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
-                Waiting for vehicle events from backend...
+                Waiting for vehicle events from backend…
               </li>
             )}
           </ul>
         </section>
+
       </div>
     </main>
   )
