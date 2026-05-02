@@ -1,6 +1,7 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const VehicleEvent = require('../models/VehicleEvent');
+const VehicleEvent = require("../models/VehicleEvent");
+const TrafficStats = require("../models/TrafficStats");
 
 const { searchTrafficContext } = require('../services/qdrantService');
 const { embedText } = require('../services/embeddingService');
@@ -17,15 +18,15 @@ router.get('/events', async (req, res) => {
     }
 });
 
-router.get('/counts', async (req, res) => {
-    try {
-        const counts = await VehicleEvent.aggregate([
-            { $group: { _id: '$class', total: { $sum: 1 } } }
-        ]);
-        res.json(counts);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+router.get("/counts", async (req, res) => {
+  try {
+    const counts = await VehicleEvent.aggregate([
+      { $group: { _id: "$class", total: { $sum: 1 } } },
+    ]);
+    res.json(counts);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.get('/ask', async (req, res) => {
@@ -46,6 +47,18 @@ router.get('/ask', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+router.get("/history", async (req, res) => {
+  const { type } = req.query;
+  try {
+    const stats = await TrafficStats.find({ type: type || "hourly" })
+      .sort({ timebucket: -1 })
+      .limit(24);
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
