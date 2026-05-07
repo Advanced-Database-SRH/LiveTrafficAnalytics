@@ -18,6 +18,8 @@ env/
 .pytest_cache/
 yolov8n.pt
 yolo26n.pt
+yolo26s.pt
+yolo26m.pt
 # =========================
 # 3. Security & Secrets (CRITICAL)
 # =========================
