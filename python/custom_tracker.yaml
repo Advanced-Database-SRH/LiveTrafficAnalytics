@@ -1,0 +1,9 @@
+# custom_tracker.yaml
+tracker_type: bytetrack  # tracker type, ['botsort', 'bytetrack']
+track_high_thresh: 0.5   # threshold for the first association
+track_low_thresh: 0.1    # threshold for the second association
+new_track_thresh: 0.6    # threshold for init new track
+track_buffer: 120        # (DEFAULT WAS 30) Frames to keep lost tracks alive
+match_thresh: 0.8        # threshold for matching tracks
+fuse_score: True         # <--- THE MISSING PARAMETER
+mot20: False             # Also added for modern compatibility

@@ -5,6 +5,11 @@ from ultralytics import YOLO
 import time
 import json
 import redis
+import os
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+tracker_path = os.path.join(script_dir, "custom_tracker.yaml")
 
 # --- Redis Connection ---
 r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
@@ -37,10 +42,17 @@ def predict_exit_side(angle):
     elif -135 < angle < -45: return "Bottom"
     return "Center"
 
+frame_count = 0 
+
 try:
     while True:
         frame = stream.read()
         if frame is None: break
+        # Processes every other frame (halves processing load).
+        frame_count += 1
+        if frame_count % 4 != 0:
+            continue
+
         
         h, w = frame.shape[:2]
         current_time = time.time()
@@ -48,14 +60,15 @@ try:
         results = model.track(
             frame,
             persist=True,
-            tracker="bytetrack.yaml", 
+            #tracker="bytetrack.yaml", 
+            tracker=tracker_path,
             verbose=False,
             conf=0.15,
             iou=0.4,
             classes=[2, 3, 5, 7]
         )
         
-        annotated_frame = results[0].plot()
+        annotated_frame = results[0].plot(conf=False)
         display_frame = cv2.resize(annotated_frame, (0, 0), fx=0.5, fy=0.5)
         cv2.imshow("Live Traffic Stream", display_frame)
         
