@@ -16,7 +16,8 @@ __pycache__/
 venv/
 env/
 .pytest_cache/
-
+yolov8n.pt
+yolo26n.pt
 # =========================
 # 3. Security & Secrets (CRITICAL)
 # =========================
