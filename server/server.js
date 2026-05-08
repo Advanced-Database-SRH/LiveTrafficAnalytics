@@ -9,6 +9,8 @@ const { ensureCollections }  = require('./src/services/qdrantService');
 const { startRedisConsumer } = require('./src/services/redisConsumer');
 const trafficRoutes = require('./src/routes/trafficRoute');
 
+const { handleVideoStream } = require('./src/controllers/streamController');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -26,37 +28,10 @@ redisImgClient.on('error', (err) => console.error('Redis Image Client Error:', e
 
 const qdrantClient = new QdrantClient({ url: process.env.QDRANT_URL });
 
-// --- LIVE VIDEO STREAM ROUTE ---
-app.get('/api/traffic/stream', async (req, res) => {
-    res.writeHead(200, {
-        'Content-Type': 'multipart/x-mixed-replace; boundary=frame',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-    });
 
-    const interval = setInterval(async () => {
-        try {
-            const frameBuffer = await redisImgClient.get('traffic:frame:live');
-
-            if (frameBuffer && Buffer.isBuffer(frameBuffer)) {
-                res.write(`--frame\r\n`);
-                res.write(`Content-Type: image/jpeg\r\n`);
-                res.write(`Content-Length: ${frameBuffer.length}\r\n\r\n`);
-                res.write(frameBuffer); 
-                res.write(`\r\n`);
-            }
-        } catch (err) {
-            console.error("Error fetching live frame:", err);
-        }
-    }, 100);
-
-    req.on('close', () => {
-        clearInterval(interval);
-        res.end();
-    });
-});
 
 app.use('/api/traffic', trafficRoutes);
+app.get('/api/traffic/stream', handleVideoStream(redisImgClient));
 
 async function startServer() {
     try {
