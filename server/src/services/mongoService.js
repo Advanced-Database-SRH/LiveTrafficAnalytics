@@ -23,6 +23,7 @@ async function saveEvent(eventData) {
     console.error("[MongoService] Failed to save event:", error.message);
   }
 }
+
 async function updateAggregates(eventData) {
   try {
     const date = new Date();
