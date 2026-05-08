@@ -14,7 +14,7 @@ async function startRedisConsumer(redisClient, redisImgClient) {
                 let imageVector = null;
 
                 if (imageKey && redisImgClient) {
-                    const imageBuffer = await redisImgClient.getBuffer(imageKey); 
+                    const imageBuffer = await redisImgClient.get(imageKey); 
 
                     if (imageBuffer) {
                         imageVector = await embedImageBuffer(imageBuffer);

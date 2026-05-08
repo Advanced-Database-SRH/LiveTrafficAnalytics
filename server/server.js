@@ -51,7 +51,7 @@ async function startServer() {
 
         await ensureCollections();
 
-        startRedisConsumer(redisClient);
+        startRedisConsumer(redisClient, redisImgClient);
 
         const PORT = process.env.PORT || 5000;
         app.listen(PORT, () => {

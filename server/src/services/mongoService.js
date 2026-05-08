@@ -2,22 +2,24 @@ const VehicleEvent = require("../models/VehicleEvent");
 const { getCurrentWeather } = require("./weatherService");
 const { embedText } = require("./embeddingService");
 const { buildSentence } = require("../utils/sentanceBuilder");
-const { upsertNumericVector, upsertTextEmbedding } = require("./qdrantService");
+const { upsertTextEmbedding, upsertVisualVector } = require("./qdrantService");
 const TrafficStats = require("../models/TrafficStats");
 
-async function saveEvent(eventData) {
+async function saveEvent(eventData, imageVector) {
   try {
-    const event = new VehicleEvent(eventData);
+    const event = new VehicleEvent(eventData, imageVector);
     await event.save();
     console.log(`[MongoService] Saved ${event.class} ID:${event.vehicle_id}`);
 
     const weather = await getCurrentWeather();
-
-    await upsertNumericVector(event, weather);
-
     const sentence = buildSentence(event, weather);
     const embedding = await embedText(sentence);
     await upsertTextEmbedding(event, sentence, embedding, weather);
+
+    if (imageVector) {
+        await upsertVisualVector(event, imageVector, weather);
+    }
+
     await updateAggregates(eventData);
   } catch (error) {
     console.error("[MongoService] Failed to save event:", error.message);
