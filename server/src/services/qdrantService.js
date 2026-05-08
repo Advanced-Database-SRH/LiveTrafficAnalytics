@@ -100,4 +100,4 @@ async function searchTrafficContext(queryEmbedding, limit = 5) {
     return searchResults.map(r => r.payload.sentence).join('\n');
 }
 
-module.exports = { ensureCollections, upsertTextEmbedding, searchTrafficContext };
+module.exports = { ensureCollections, upsertTextEmbedding, searchTrafficContext, upsertVisualVector };
