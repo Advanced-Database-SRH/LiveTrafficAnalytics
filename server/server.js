@@ -26,31 +26,6 @@ redisImgClient.on('error', (err) => console.error('Redis Image Client Error:', e
 
 const qdrantClient = new QdrantClient({ url: process.env.QDRANT_URL });
 
-
-// --- SINGLE FRAME TEST ROUTE ---
-app.get('/api/traffic/test-frame', async (req, res) => {
-    try {
-        // Fetch raw buffer
-        const frameBuffer = await redisImgClient.get(
-            commandOptions({ returnBuffers: true }), 
-            'traffic:frame:live'
-        );
-
-        if (!frameBuffer) {
-            return res.status(404).send("Key found, but data is empty.");
-        }
-
-        // Send as a standard, single static image
-        res.set('Content-Type', 'image/jpeg');
-        res.set('Content-Length', frameBuffer.length);
-        res.send(frameBuffer);
-
-    } catch (err) {
-        console.error("Test Route Error:", err);
-        res.status(500).send(`Error reading from Redis: ${err.message}`);
-    }
-});
-
 // --- LIVE VIDEO STREAM ROUTE ---
 app.get('/api/traffic/stream', async (req, res) => {
     res.writeHead(200, {
@@ -61,7 +36,6 @@ app.get('/api/traffic/stream', async (req, res) => {
 
     const interval = setInterval(async () => {
         try {
-            // In v5, redisImgClient now natively returns raw Buffers
             const frameBuffer = await redisImgClient.get('traffic:frame:live');
 
             if (frameBuffer && Buffer.isBuffer(frameBuffer)) {
