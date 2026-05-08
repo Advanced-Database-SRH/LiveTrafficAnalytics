@@ -4,6 +4,7 @@ import Chatbot from "./components/Chatbot";
 
 const EVENTS_API = "http://localhost:5000/api/traffic/events";
 const COUNTS_API = "http://localhost:5000/api/traffic/counts";
+const STREAM_URL = 'http://localhost:5000/api/traffic/stream';
 
 function App() {
 	const [events, setEvents] = useState([]);
@@ -109,6 +110,7 @@ function App() {
 							<h1 className="max-w-3xl text-4xl font-black tracking-tight md:text-5xl">
 								Live Traffic Analytics Dashboard
 							</h1>
+							
 
 							<p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 md:text-base">
 								Real-time vehicle monitoring, weather conditions, traffic
@@ -193,13 +195,13 @@ function App() {
 							LIVE
 						</div>
 
-						<div className="relative text-center">
-							<Camera className="mx-auto mb-4 text-blue-300" size={52} />
-							<p className="text-xl font-black">Camera Feed</p>
-							<span className="mt-2 block text-sm text-slate-400">
-								YOLO output preview can be connected later
-							</span>
-						</div>
+
+							<img 
+  								src={STREAM_URL}
+  								alt="Live Traffic Feed" 
+								className="absolute inset-0 w-full h-full object-contain" 
+							/>
+
 					</div>
 				</section>
 

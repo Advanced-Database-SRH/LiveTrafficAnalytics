@@ -18,6 +18,8 @@ r_img = redis.Redis(host='localhost', port=6379, db=0, decode_responses=False)
 # --- CONFIGURATION ---
 options={"STREAM_RESOLUTION": "720p"}
 stream = CamGear(source="https://www.youtube.com/watch?v=1EiC9bvVGnk", stream_mode=True, logging=False, **options).start()
+#stream = CamGear(source="https://www.youtube.com/watch?v=dfVK7ld38Ys", stream_mode=True, logging=False, **options).start()
+
 
 model = YOLO("yolo26n.pt") 
 tracker_data = {}
@@ -70,7 +72,11 @@ try:
         
         annotated_frame = results[0].plot(conf=False)
         display_frame = cv2.resize(annotated_frame, (0, 0), fx=0.5, fy=0.5)
-        cv2.imshow("Live Traffic Stream", display_frame)
+        #cv2.imshow("Live Traffic Stream", display_frame)
+        
+        success, buffer = cv2.imencode('.jpg', display_frame)
+        if success:
+            r_img.set("traffic:frame:live", buffer.tobytes())
         
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
