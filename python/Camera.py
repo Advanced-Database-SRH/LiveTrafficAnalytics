@@ -89,6 +89,11 @@ try:
             for vid, box, cls_idx in zip(active_ids, boxes.xyxy.cpu().tolist(), boxes.cls.cpu().tolist()):
                 cx, cy = (box[0]+box[2])/2, (box[1]+box[3])/2
 
+                x1, y1, x2, y2 = map(int, box)
+                crop_y1, crop_y2 = max(0, y1-10), min(h, y2+10)
+                crop_x1, crop_x2 = max(0, x1-10), min(w, x2+10)
+                vehicle_crop = frame[crop_y1:crop_y2, crop_x1:crop_x2]
+
                 if vid not in tracker_data:
                     tracker_data[vid] = {
                         'cls': model.names[int(cls_idx)], 
@@ -96,11 +101,14 @@ try:
                         'ent_side': get_side(cx, cy, w, h), 
                         'path': [(cx, cy)], 
                         'ent_time': time.strftime("%H:%M:%S"),
-                        'missing_frames': 0  # Initialize grace period timer
+                        'missing_frames': 0,  # Initialize grace period timer
+                        'last_crop': vehicle_crop
                     }
                 else:
                     tracker_data[vid]['path'].append((cx, cy))
                     tracker_data[vid]['missing_frames'] = 0 
+
+                    tracker_data[vid]['last_crop'] = vehicle_crop
                     
                     if tracker_data[vid]['ent_angle'] is None and len(tracker_data[vid]['path']) > 3:
                         dist_sq = (cx - tracker_data[vid]['path'][0][0])**2 + (cy - tracker_data[vid]['path'][0][1])**2
@@ -129,11 +137,11 @@ try:
                         
                         latest_frame_key = f"traffic:frame:{current_sec}_vid{vid}"
                         
-                        success, buffer = cv2.imencode('.jpg', frame)
-                        if success:
-                            frame_bytes = buffer.tobytes()
-                            r_img.setex(latest_frame_key, 3600, frame_bytes)
-                            r_img.set("traffic:frame:latest", frame_bytes) 
+                        if data['last_crop'] is not None and data['last_crop'].size > 0:
+                            success, buffer = cv2.imencode('.jpg', data['last_crop'])
+                            if success:
+                                frame_bytes = buffer.tobytes()
+                                r_img.setex(latest_frame_key, 3600, frame_bytes)
 
                         event = {
                             "vehicle_id": int(vid),
