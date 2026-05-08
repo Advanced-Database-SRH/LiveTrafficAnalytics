@@ -93,4 +93,15 @@ async function upsertTextEmbedding(event, sentence, embedding, weather) {
     console.log(`[QdrantService] Text upserted — "${sentence.slice(0, 60)}..."`);
 }
 
-module.exports = { ensureCollections, upsertNumericVector, upsertTextEmbedding };
+async function searchTrafficContext(queryEmbedding, limit = 5) {
+    const searchResults = await qdrant.search(TEXT_COLLECTION, {
+        vector: queryEmbedding,
+        limit: limit,
+        with_payload: true,
+    })
+
+    // Extract the sentences into a single string for Ollama
+    return searchResults.map(r => r.payload.sentence).join('\n');
+}
+
+module.exports = { ensureCollections, upsertNumericVector, upsertTextEmbedding, searchTrafficContext };
