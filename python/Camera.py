@@ -102,13 +102,22 @@ try:
                         'path': [(cx, cy)], 
                         'ent_time': time.strftime("%H:%M:%S"),
                         'missing_frames': 0,  # Initialize grace period timer
-                        'last_crop': vehicle_crop
+                        'last_crop': vehicle_crop,
+                        'best_crop': vehicle_crop,
+                        'best_area': (x2 - x1) * (y2 - y1)
                     }
                 else:
                     tracker_data[vid]['path'].append((cx, cy))
-                    tracker_data[vid]['missing_frames'] = 0 
+                    tracker_data[vid]['missing_frames'] = 0
 
                     tracker_data[vid]['last_crop'] = vehicle_crop
+
+                    current_area = (x2 - x1) * (y2 - y1)
+
+                    if current_area > tracker_data[vid]['best_area']:
+                        tracker_data[vid]['best_area'] = current_area
+                        tracker_data[vid]['best_crop'] = vehicle_crop
+
                     
                     if tracker_data[vid]['ent_angle'] is None and len(tracker_data[vid]['path']) > 3:
                         dist_sq = (cx - tracker_data[vid]['path'][0][0])**2 + (cy - tracker_data[vid]['path'][0][1])**2
@@ -137,8 +146,8 @@ try:
                         
                         latest_frame_key = f"traffic:frame:{current_sec}_vid{vid}"
                         
-                        if data['last_crop'] is not None and data['last_crop'].size > 0:
-                            success, buffer = cv2.imencode('.jpg', data['last_crop'])
+                        if data['best_crop'] is not None and data['best_crop'].size > 0:
+                            success, buffer = cv2.imencode('.jpg', data['best_crop'])
                             if success:
                                 frame_bytes = buffer.tobytes()
                                 r_img.setex(latest_frame_key, 3600, frame_bytes)
