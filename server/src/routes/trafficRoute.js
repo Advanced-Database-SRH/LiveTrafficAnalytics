@@ -5,7 +5,7 @@ const TrafficStats = require("../models/TrafficStats");
 
 const { searchTrafficContext } = require('../services/qdrantService');
 const { embedText } = require('../services/embeddingService');
-const { generateResponse } = require('../services/ollamaService');
+const { generateResponse } = require('../services/groqService');
 
 router.get("/events", async (req, res) => {
   try {
@@ -50,7 +50,7 @@ router.get('/ask', async (req, res) => {
         // 2. Fetch relevant context from Qdrant
         const context = await searchTrafficContext(queryVector);
 
-        // 3. Get answer from Ollama
+        // 3. Get answer from Groq
         const answer = await generateResponse(context, question);
 
         res.json({ question, answer });
