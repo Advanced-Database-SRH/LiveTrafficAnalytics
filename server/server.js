@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const { createClient, RESP_TYPES } = require('redis');
 const { QdrantClient } = require('@qdrant/js-client-rest');
 const { ensureCollections }  = require('./src/services/qdrantService');
+const chatRoutes = require('./src/routes/chatRoute');
 
 const { startRedisConsumer } = require('./src/services/redisConsumer');
 const trafficRoutes = require('./src/routes/trafficRoute');
@@ -35,6 +36,7 @@ const qdrantClient = new QdrantClient({ url: process.env.QDRANT_URL });
 
 app.use('/api/traffic', trafficRoutes);
 app.get('/api/traffic/stream', handleVideoStream(redisImgClient));
+app.use('/api/chat', chatRoutes);
 
 async function startServer() {
     try {

@@ -16,10 +16,7 @@ __pycache__/
 venv/
 env/
 .pytest_cache/
-yolov8n.pt
-yolo26n.pt
-yolo26s.pt
-yolo26m.pt
+*.pt
 # =========================
 # 3. Security & Secrets (CRITICAL)
 # =========================
@@ -42,4 +39,4 @@ Thumbs.db
 # mongodb_data/
 # qdrant_data/
 
-assets/img/
+server/assets/img/

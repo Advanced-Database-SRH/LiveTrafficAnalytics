@@ -101,4 +101,35 @@ async function searchTrafficContext(queryEmbedding, limit = 5) {
     return searchResults.map(r => r.payload.sentence).join('\n');
 }
 
-module.exports = { ensureCollections, upsertTextEmbedding, searchTrafficContext, upsertVisualVector };
+async function searchByVisualMatch(queryVector) {
+    const visualResults = await qdrant.search(VISION_COLLECTION, {
+        vector: queryVector,
+        limit: 1,
+        with_payload: true,
+    });
+
+    if (visualResults.length === 0) return null;
+
+    const bestMatch = visualResults[0];
+    const matchedMongoId = bestMatch.payload.mongo_id;
+    const imagePath = bestMatch.payload.image_path; 
+
+    const textResults = await qdrant.scroll(TEXT_COLLECTION, {
+        filter: {
+            must: [{ key: 'mongo_id', match: { value: matchedMongoId } }]
+        },
+        limit: 1,
+        with_payload: true
+    });
+
+    const contextSentence = textResults.points.length > 0 
+        ? textResults.points[0].payload.sentence 
+        : "No text context found for this vehicle.";
+
+    return {
+        context: contextSentence,
+        imagePath: imagePath
+    };
+}
+
+module.exports = { ensureCollections, upsertTextEmbedding, searchTrafficContext, upsertVisualVector, searchByVisualMatch};

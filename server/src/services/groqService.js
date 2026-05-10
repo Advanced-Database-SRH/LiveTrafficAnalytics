@@ -20,12 +20,12 @@ async function generateResponse(context, question) {
         //     stream: false
         // });
  
-        const groqResponse = await axios.post('https://api.x.ai/v1/chat/completions', {
+        const groqResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
             messages: [
-                { role: "system", content: "You are a Traffic Intelligence Auditor storing prompts to the cloud." },
+                { role: "system", content: "You are an expert Traffic Intelligence Auditor." },
                 { role: "user", content: prompt }
             ],
-            model: "llama-3.3-70b-specdec",
+            model: "llama-3.3-70b-versatile",
             stream: false
         }, {
             headers: {
@@ -34,9 +34,9 @@ async function generateResponse(context, question) {
             }
         })
  
-        const [groqResult] = await Promise.all([groqResponse]);
+        // const [groqResult] = await Promise.all([groqResponse]);
  
-        return groqResult.data.response;
+        return groqResponse.data.choices[0].message.content;
     } catch (error) {
         if (error.response) {
         // This will tell you exactly which parameter Groq didn't like
