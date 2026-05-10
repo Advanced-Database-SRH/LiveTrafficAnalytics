@@ -82,6 +82,7 @@ async function upsertVisualVector(event, imageVector, weather) {
                 timestamp:         event.timestamp,
                 weather_condition: weather.condition,
                 temperature_c:     weather.temperature_c,
+                image_path:        event.image_path ?? null,
             },
         }],
     });

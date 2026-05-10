@@ -11,19 +11,22 @@ async function startRedisConsumer(redisClient, redisImgClient) {
             while (raw) {
                 const event = JSON.parse(raw);
                 const imageKey = event.linked_frame;
+                let imageBuffer = null;
                 let imageVector = null;
 
                 if (imageKey && redisImgClient) {
-                    const imageBuffer = await redisImgClient.get(imageKey); 
+                    imageBuffer = await redisImgClient.get(imageKey); 
 
                     if (imageBuffer) {
                         imageVector = await embedImageBuffer(imageBuffer);
+                    } else {
+                        console.warn(`[RedisConsumer] No image found for key: ${imageKey}`);
                     }
                 }
 
                 delete event.linked_frame;
 
-                await saveEvent(event, imageVector);
+                await saveEvent(event, imageBuffer, imageVector);
 
                 if (imageKey) {
                     await redisClient.del(imageKey);

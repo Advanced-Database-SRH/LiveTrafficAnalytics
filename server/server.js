@@ -11,9 +11,12 @@ const trafficRoutes = require('./src/routes/trafficRoute');
 
 const { handleVideoStream } = require('./src/controllers/streamController');
 
+const path    = require('path');  
+
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use('/assets', express.static(path.resolve(__dirname, 'assets')));
 
 const redisClient = createClient({ url: process.env.REDIS_URL });
 redisClient.on('error', (err) => console.error('Redis Client Error:', err));

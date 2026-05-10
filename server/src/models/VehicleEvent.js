@@ -9,6 +9,7 @@ const vehicleEventSchema = new mongoose.Schema({
     exit_side:   { type: String },
     exit_angle:  { type: Number },
     exit_time:   { type: String },
+    image_path:  { type: String, default: null },
     timestamp:   { type: Number },
 }, { 
     timestamps: true  

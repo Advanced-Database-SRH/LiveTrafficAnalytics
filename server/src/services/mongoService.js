@@ -1,3 +1,6 @@
+const path = require("path");
+const fs   = require("fs");
+
 const VehicleEvent = require("../models/VehicleEvent");
 const { getCurrentWeather } = require("./weatherService");
 const { embedText } = require("./embeddingService");
@@ -5,9 +8,34 @@ const { buildSentence } = require("../utils/sentanceBuilder");
 const { upsertTextEmbedding, upsertVisualVector } = require("./qdrantService");
 const TrafficStats = require("../models/TrafficStats");
 
-async function saveEvent(eventData, imageVector) {
+const IMG_DIR = path.resolve(__dirname, "../../assets/img");
+
+if (!fs.existsSync(IMG_DIR)) {
+    fs.mkdirSync(IMG_DIR, { recursive: true });
+}
+
+function saveImageToDisk(imageBuffer, vehicleId) {
+    if (!imageBuffer) return null;
+ 
+    try {
+        const filename = `vehicle_${vehicleId}_${Date.now()}.jpg`;
+        const filepath  = path.join(IMG_DIR, filename);
+        fs.writeFileSync(filepath, imageBuffer);
+        return `assets/img/${filename}`;
+    } catch (err) {
+        console.error("[MongoService] Failed to save image to disk:", err.message);
+        return null;
+    }
+}
+
+async function saveEvent(eventData, imageBuffer, imageVector) {
   try {
-    const event = new VehicleEvent(eventData, imageVector);
+    const imagePath = saveImageToDisk(imageBuffer, eventData.vehicle_id);
+
+    const event = new VehicleEvent({
+        ...eventData,
+        ...(imagePath && { image_path: imagePath }),
+    });
     await event.save();
     console.log(`[MongoService] Saved ${event.class} ID:${event.vehicle_id}`);
 
@@ -17,7 +45,7 @@ async function saveEvent(eventData, imageVector) {
     await upsertTextEmbedding(event, sentence, embedding, weather);
 
     if (imageVector) {
-        await upsertVisualVector(event, imageVector, weather);
+      await upsertVisualVector(event, imageVector, weather);
     }
 
     await updateAggregates(eventData);

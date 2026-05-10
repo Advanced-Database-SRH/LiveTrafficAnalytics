@@ -41,3 +41,5 @@ Thumbs.db
 # (Optional: Ignore local volume folders if you mapped them to your project directory instead of Docker's internal storage)
 # mongodb_data/
 # qdrant_data/
+
+assets/img/
