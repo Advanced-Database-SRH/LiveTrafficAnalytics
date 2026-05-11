@@ -1,14 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
-import { Camera, Car, CloudSun, Gauge, Radio, Activity } from "lucide-react";
+import { Car, CloudSun, Gauge, Radio, Activity } from "lucide-react";
+import {
+	Area,
+	AreaChart,
+	Bar,
+	BarChart,
+	CartesianGrid,
+	ResponsiveContainer,
+	Tooltip,
+	XAxis,
+	YAxis,
+} from "recharts";
 import Chatbot from "./components/Chatbot";
 
 const EVENTS_API = "http://localhost:5000/api/traffic/events";
 const COUNTS_API = "http://localhost:5000/api/traffic/counts";
-const STREAM_URL = 'http://localhost:5000/api/traffic/stream';
+const HISTORY_API = "http://localhost:5000/api/traffic/history?type=hourly";
+const STREAM_URL = "http://localhost:5000/api/traffic/stream";
 
 function App() {
 	const [events, setEvents] = useState([]);
 	const [counts, setCounts] = useState([]);
+	const [history, setHistory] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 
@@ -20,20 +33,23 @@ function App() {
 
 	async function fetchTrafficData() {
 		try {
-			const [eventsRes, countsRes] = await Promise.all([
+			const [eventsRes, countsRes, historyRes] = await Promise.all([
 				fetch(EVENTS_API),
 				fetch(COUNTS_API),
+				fetch(HISTORY_API),
 			]);
 
-			if (!eventsRes.ok || !countsRes.ok) {
+			if (!eventsRes.ok || !countsRes.ok || !historyRes.ok) {
 				throw new Error("Backend request failed");
 			}
 
 			const eventsData = await eventsRes.json();
 			const countsData = await countsRes.json();
+			const historyData = await historyRes.json();
 
 			setEvents(eventsData);
 			setCounts(countsData);
+			setHistory(historyData);
 			setError("");
 		} catch (err) {
 			setError("Backend not connected yet");
@@ -68,6 +84,53 @@ function App() {
 		if (totalVehicles < 40) return "Medium";
 		return "High";
 	}, [totalVehicles]);
+
+	const trafficOverviewData = useMemo(() => {
+		const minuteMap = {};
+
+		events.forEach((event) => {
+			if (!event.timestamp) return;
+
+			const date = new Date(event.timestamp * 1000);
+			const label = date.toLocaleTimeString([], {
+				hour: "2-digit",
+				minute: "2-digit",
+			});
+
+			minuteMap[label] = (minuteMap[label] || 0) + 1;
+		});
+
+		return Object.entries(minuteMap)
+			.map(([time, total]) => ({ time, total }))
+			.reverse()
+			.slice(-8);
+	}, [events]);
+
+	const historyChartData = useMemo(() => {
+		return history
+			.slice()
+			.reverse()
+			.map((item) => {
+				const counts = item.counts || {};
+				const total =
+					(counts.car || 0) +
+					(counts.bus || 0) +
+					(counts.truck || 0) +
+					(counts.motorcycle || 0);
+
+				return {
+					time: new Date(item.timebucket).toLocaleTimeString([], {
+						hour: "2-digit",
+						minute: "2-digit",
+					}),
+					car: counts.car || 0,
+					bus: counts.bus || 0,
+					truck: counts.truck || 0,
+					motorcycle: counts.motorcycle || 0,
+					total,
+				};
+			});
+	}, [history]);
 
 	const stats = [
 		{
@@ -110,7 +173,6 @@ function App() {
 							<h1 className="max-w-3xl text-4xl font-black tracking-tight md:text-5xl">
 								Live Traffic Analytics Dashboard
 							</h1>
-							
 
 							<p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 md:text-base">
 								Real-time vehicle monitoring, weather conditions, traffic
@@ -123,7 +185,9 @@ function App() {
 							<p className="text-sm text-slate-300">System status</p>
 							<div className="mt-2 flex items-center gap-2 text-lg font-bold">
 								<span
-									className={`h-3 w-3 rounded-full ${error ? "bg-red-400" : "bg-emerald-400"}`}
+									className={`h-3 w-3 rounded-full ${
+										error ? "bg-red-400" : "bg-emerald-400"
+									}`}
 								/>
 								{error ? "Frontend Preview" : "Live Connected"}
 							</div>
@@ -190,18 +254,16 @@ function App() {
 
 					<div className="relative flex h-[420px] items-center justify-center overflow-hidden rounded-[22px] bg-slate-950 text-white">
 						<div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.28),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.22),_transparent_30%)]" />
-						<div className="absolute left-5 top-5 flex items-center gap-2 rounded-full bg-black/40 px-3 py-1 text-xs backdrop-blur">
+						<div className="absolute left-5 top-5 z-10 flex items-center gap-2 rounded-full bg-black/40 px-3 py-1 text-xs backdrop-blur">
 							<span className="h-2 w-2 rounded-full bg-red-500" />
 							LIVE
 						</div>
 
-
-							<img 
-  								src={STREAM_URL}
-  								alt="Live Traffic Feed" 
-								className="absolute inset-0 w-full h-full object-contain" 
-							/>
-
+						<img
+							src={STREAM_URL}
+							alt="Live Traffic Feed"
+							className="absolute inset-0 h-full w-full object-contain"
+						/>
 					</div>
 				</section>
 
@@ -211,36 +273,35 @@ function App() {
 							<div>
 								<h2 className="text-xl font-bold">Traffic Overview</h2>
 								<p className="text-sm text-slate-500">
-									Latest event activity trend
+									Live vehicle detections grouped by recent minutes
 								</p>
 							</div>
 							<span className="text-sm font-medium text-slate-400">
-								Recent events
+								Recent minutes
 							</span>
 						</div>
 
-						<div className="flex h-80 items-end gap-4 rounded-[22px] bg-slate-50 p-5">
-							{events
-								.slice(0, 6)
-								.reverse()
-								.map((event, index) => (
-									<div
-										key={event._id || index}
-										className="flex-1 rounded-t-2xl bg-gradient-to-t from-blue-600 to-cyan-300 shadow-lg shadow-blue-200"
-										style={{ height: `${30 + (index + 1) * 10}%` }}
-									/>
-								))}
-
-							{events.length === 0 && (
+						<div className="h-80 rounded-[22px] bg-slate-50 p-5">
+							{trafficOverviewData.length > 0 ? (
+								<ResponsiveContainer width="100%" height="100%">
+									<BarChart data={trafficOverviewData}>
+										<CartesianGrid strokeDasharray="3 3" vertical={false} />
+										<XAxis dataKey="time" />
+										<YAxis allowDecimals={false} />
+										<Tooltip />
+										<Bar
+											dataKey="total"
+											name="Vehicles"
+											fill="#2563eb"
+											radius={[14, 14, 0, 0]}
+										/>
+									</BarChart>
+								</ResponsiveContainer>
+							) : (
 								<div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
 									No event data yet
 								</div>
 							)}
-						</div>
-
-						<div className="mt-3 flex justify-between text-sm text-slate-400">
-							<span>Old</span>
-							<span>Recent</span>
 						</div>
 					</div>
 
@@ -282,6 +343,45 @@ function App() {
 					</div>
 				</section>
 
+				<section className="mb-6 rounded-[28px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
+					<div className="mb-6 flex items-center justify-between">
+						<div>
+							<h2 className="text-xl font-bold">Historical Traffic Trends</h2>
+							<p className="text-sm text-slate-500">
+								Hourly vehicle trend from stored traffic statistics
+							</p>
+						</div>
+						<span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600">
+							/history
+						</span>
+					</div>
+
+					<div className="h-80 rounded-[22px] bg-slate-50 p-5">
+						{historyChartData.length > 0 ? (
+							<ResponsiveContainer width="100%" height="100%">
+								<AreaChart data={historyChartData}>
+									<CartesianGrid strokeDasharray="3 3" vertical={false} />
+									<XAxis dataKey="time" />
+									<YAxis allowDecimals={false} />
+									<Tooltip />
+									<Area
+										type="monotone"
+										dataKey="total"
+										name="Total Vehicles"
+										stroke="#2563eb"
+										fill="#93c5fd"
+										strokeWidth={3}
+									/>
+								</AreaChart>
+							</ResponsiveContainer>
+						) : (
+							<div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
+								No historical data yet
+							</div>
+						)}
+					</div>
+				</section>
+
 				<section className="rounded-[28px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
 					<div className="mb-6 flex items-center justify-between">
 						<div>
@@ -320,6 +420,7 @@ function App() {
 					</ul>
 				</section>
 			</div>
+
 			<Chatbot
 				trafficContext={{
 					totalVehicles,
