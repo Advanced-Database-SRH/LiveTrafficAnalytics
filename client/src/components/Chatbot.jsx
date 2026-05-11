@@ -9,19 +9,11 @@ import {
 	Minimize2,
 	Maximize2,
 	Zap,
+	Paperclip,
 } from "lucide-react";
 
-// ─────────────────────────────────────────────────────────
-// CONFIG
-// Replace this URL with your own backend proxy or Qdrant
-// endpoint that returns a text answer given a user question.
-// See qdrantService.js for the full Qdrant integration layer.
-// ─────────────────────────────────────────────────────────
 const CHAT_API_URL = "http://localhost:5000/api/chat";
 
-// ─────────────────────────────────────────────────────────
-// SUGGESTED PROMPTS shown when the chat is empty
-// ─────────────────────────────────────────────────────────
 const SUGGESTIONS = [
 	"What is the current traffic density?",
 	"How many vehicles have been detected?",
@@ -30,10 +22,6 @@ const SUGGESTIONS = [
 	"Summarise the traffic conditions right now",
 ];
 
-// ─────────────────────────────────────────────────────────
-// Build a system prompt from live dashboard context so the
-// AI always has up-to-date numbers when answering questions.
-// ─────────────────────────────────────────────────────────
 function buildSystemPrompt(ctx) {
 	return `You are a traffic analysis assistant embedded in a live traffic monitoring dashboard.
 
@@ -52,16 +40,35 @@ Your role:
 - Keep answers under 120 words unless a detailed breakdown is explicitly requested.`;
 }
 
-// ─────────────────────────────────────────────────────────
-// API call — replace body shape to match your backend
-// ─────────────────────────────────────────────────────────
-async function callChatAPI(messages, systemPrompt) {
+function fileToBase64(file) {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = () => resolve(reader.result.split(",")[1]); // strip data:...;base64,
+		reader.onerror = reject;
+		reader.readAsDataURL(file);
+	});
+}
+
+// API call — sends text messages + optional image as base64
+async function callChatAPI(messages, systemPrompt, imageFile = null) {
+	let imageBase64 = null;
+	let imageMimeType = null;
+
+	if (imageFile) {
+		imageBase64 = await fileToBase64(imageFile);
+		imageMimeType = imageFile.type; // e.g. "image/jpeg"
+	}
+
 	const res = await fetch(CHAT_API_URL, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({
 			system: systemPrompt,
 			messages: messages.map((m) => ({ role: m.role, content: m.content })),
+			// image is sent separately so your backend can pass it to the LLM vision API
+			image: imageBase64
+				? { data: imageBase64, mimeType: imageMimeType }
+				: null,
 		}),
 	});
 
@@ -71,32 +78,26 @@ async function callChatAPI(messages, systemPrompt) {
 	}
 
 	const data = await res.json();
-	// Adapt this to your API's response shape:
 	return (
 		data.reply ?? data.content ?? data.message ?? "No response from server."
 	);
 }
 
-// ─────────────────────────────────────────────────────────
 // Typing animation dots
-// ─────────────────────────────────────────────────────────
 function TypingDots() {
 	return (
 		<div className="flex items-center gap-1.5 px-1 py-0.5">
 			{[0, 150, 300].map((delay) => (
 				<span
 					key={delay}
-					className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-bounce"
+					className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce shadow-[0_0_6px_rgba(99,102,241,0.8)]"
 					style={{ animationDelay: `${delay}ms` }}
 				/>
 			))}
 		</div>
 	);
 }
-
-// ─────────────────────────────────────────────────────────
 // Single message bubble
-// ─────────────────────────────────────────────────────────
 function Message({ msg }) {
 	const isUser = msg.role === "user";
 	const isError = msg.role === "error";
@@ -105,8 +106,8 @@ function Message({ msg }) {
 		<div className={`flex gap-2.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
 			{/* Avatar */}
 			{!isUser && (
-				<div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 ring-1 ring-cyan-500/30">
-					<Zap size={13} className="text-cyan-400" />
+				<div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-400/20 ring-1 ring-indigo-400/50 shadow-[0_0_10px_rgba(99,102,241,0.3)]">
+					<Zap size={13} className="text-indigo-300" />
 				</div>
 			)}
 
@@ -115,10 +116,10 @@ function Message({ msg }) {
 				className={[
 					"max-w-[86%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed",
 					isUser
-						? "rounded-tr-sm bg-blue-600/25 text-blue-50 ring-1 ring-blue-500/20"
+						? "rounded-tr-sm bg-indigo-600/30 text-indigo-50 ring-1 ring-indigo-400/40 shadow-[0_0_16px_rgba(99,102,241,0.2)]"
 						: isError
-							? "rounded-tl-sm bg-red-900/30 text-red-300 ring-1 ring-red-500/20"
-							: "rounded-tl-sm bg-white/[0.06] text-slate-200 ring-1 ring-white/8",
+							? "rounded-tl-sm bg-red-950/50 text-red-200 ring-1 ring-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.15)]"
+							: "rounded-tl-sm bg-slate-800/60 text-slate-100 ring-1 ring-slate-600/40 shadow-[0_0_12px_rgba(0,0,0,0.3)]",
 				].join(" ")}
 			>
 				{isError && (
@@ -129,8 +130,15 @@ function Message({ msg }) {
 						</span>
 					</div>
 				)}
+				{msg.previewUrl && (
+					<img
+						src={msg.previewUrl}
+						alt="uploaded"
+						className="mb-2 max-h-40 w-full rounded-xl object-cover ring-1 ring-indigo-500/20"
+					/>
+				)}
 				<p className="whitespace-pre-wrap">{msg.content}</p>
-				<p className="mt-1.5 text-right text-[10px] opacity-30">
+				<p className="mt-1.5 text-right text-[10px] opacity-40">
 					{new Date(msg.ts).toLocaleTimeString([], {
 						hour: "2-digit",
 						minute: "2-digit",
@@ -140,13 +148,7 @@ function Message({ msg }) {
 		</div>
 	);
 }
-
-// ─────────────────────────────────────────────────────────
 // MAIN CHATBOT COMPONENT
-// Props:
-//   trafficContext — live data from App.jsx (auto-injected
-//                   into the system prompt on every request)
-// ─────────────────────────────────────────────────────────
 export default function Chatbot({ trafficContext = {} }) {
 	const [open, setOpen] = useState(false);
 	const [expanded, setExpanded] = useState(false);
@@ -163,6 +165,8 @@ export default function Chatbot({ trafficContext = {} }) {
 	const bottomRef = useRef(null);
 	const inputRef = useRef(null);
 	const textareaRef = useRef(null);
+	const fileInputRef = useRef(null);
+	const [pendingImage, setPendingImage] = useState(null); // { file, previewUrl }
 
 	// Scroll to bottom on new messages
 	useEffect(() => {
@@ -184,9 +188,17 @@ export default function Chatbot({ trafficContext = {} }) {
 	const sendMessage = useCallback(
 		async (text) => {
 			const trimmed = (text ?? input).trim();
-			if (!trimmed || loading) return;
+			if ((!trimmed && !pendingImage) || loading) return;
 
-			const userMsg = { role: "user", content: trimmed, ts: Date.now() };
+			const imageLabel = pendingImage
+				? ` [Image: ${pendingImage.file.name}]`
+				: "";
+			const userMsg = {
+				role: "user",
+				content: trimmed + imageLabel,
+				ts: Date.now(),
+				previewUrl: pendingImage?.previewUrl ?? null,
+			};
 			const nextMessages = [...messages, userMsg];
 
 			setMessages(nextMessages);
@@ -194,13 +206,15 @@ export default function Chatbot({ trafficContext = {} }) {
 			if (textareaRef.current) textareaRef.current.style.height = "auto";
 			setLoading(true);
 
+			const imageToSend = pendingImage?.file ?? null;
+			setPendingImage(null);
+
 			try {
 				const systemPrompt = buildSystemPrompt(trafficContext);
-				// Send only user/assistant turns (not error turns) to the API
 				const apiMessages = nextMessages.filter(
 					(m) => m.role === "user" || m.role === "assistant",
 				);
-				const reply = await callChatAPI(apiMessages, systemPrompt);
+				const reply = await callChatAPI(apiMessages, systemPrompt, imageToSend);
 
 				setMessages((prev) => [
 					...prev,
@@ -222,7 +236,7 @@ export default function Chatbot({ trafficContext = {} }) {
 				setTimeout(() => inputRef.current?.focus(), 60);
 			}
 		},
-		[input, loading, messages, trafficContext],
+		[input, loading, messages, trafficContext, pendingImage],
 	);
 
 	const handleKey = (e) => {
@@ -257,17 +271,19 @@ export default function Chatbot({ trafficContext = {} }) {
 				aria-label="Toggle Traffic AI chat"
 				className={[
 					"fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-2xl px-4 py-3",
-					"bg-gradient-to-br from-slate-900 to-slate-800",
-					"shadow-[0_4px_32px_rgba(0,0,0,0.5)] ring-1 ring-white/10",
-					"transition-all duration-200 hover:scale-105 active:scale-95",
+					"bg-gradient-to-br from-indigo-600 to-violet-700",
+					"shadow-[0_4px_24px_rgba(99,102,241,0.5)] ring-1 ring-indigo-400/40",
+					"transition-all duration-200 hover:scale-105 hover:shadow-[0_6px_32px_rgba(99,102,241,0.65)] active:scale-95",
 					open ? "opacity-0 pointer-events-none" : "opacity-100",
 				].join(" ")}
 			>
-				<div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-500/20">
-					<MessageSquare size={16} className="text-cyan-400" />
-					<span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-slate-900" />
+				<div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-white/15">
+					<MessageSquare size={16} className="text-white" />
+					<span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-green-400 ring-2 ring-violet-800 shadow-[0_0_8px_#4ade80]" />
 				</div>
-				<span className="text-sm font-semibold text-white">Traffic AI</span>
+				<span className="text-sm font-bold text-white tracking-wide">
+					Traffic AI
+				</span>
 			</button>
 
 			{/* ── Chat Panel ──────────────────────────────────── */}
@@ -275,8 +291,8 @@ export default function Chatbot({ trafficContext = {} }) {
 				className={[
 					"fixed bottom-6 right-6 z-50 flex flex-col",
 					"rounded-2xl overflow-hidden",
-					"bg-[#0d1117] ring-1 ring-white/10",
-					"shadow-[0_8px_64px_rgba(0,0,0,0.7)]",
+					"bg-[#0f0f1a] ring-1 ring-indigo-500/25",
+					"shadow-[0_8px_64px_rgba(99,102,241,0.15),0_2px_32px_rgba(0,0,0,0.9)]",
 					panelWidth,
 					panelHeight,
 					"transition-all duration-300 ease-out",
@@ -286,17 +302,17 @@ export default function Chatbot({ trafficContext = {} }) {
 				].join(" ")}
 			>
 				{/* Header */}
-				<div className="flex flex-shrink-0 items-center justify-between border-b border-white/[0.07] bg-[#0d1117] px-4 py-3.5">
+				<div className="flex flex-shrink-0 items-center justify-between border-b border-indigo-500/20 bg-gradient-to-r from-[#0f0f1a] via-[#13102a] to-[#0f0f1a] px-4 py-3.5">
 					<div className="flex items-center gap-3">
-						<div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-500/15 ring-1 ring-cyan-500/25">
-							<Zap size={15} className="text-cyan-400" />
-							<span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[#0d1117]" />
+						<div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-400/20 ring-1 ring-indigo-400/60 shadow-[0_0_16px_rgba(99,102,241,0.4)]">
+							<Zap size={15} className="text-indigo-300" />
+							<span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-green-400 ring-2 ring-[#0f0f1a] shadow-[0_0_8px_#4ade80]" />
 						</div>
 						<div>
-							<p className="text-[13px] font-bold text-white leading-tight">
+							<p className="text-[13px] font-bold text-white leading-tight tracking-wide">
 								Traffic AI
 							</p>
-							<p className="text-[10px] text-slate-500 leading-tight tracking-wide">
+							<p className="text-[10px] text-indigo-400/70 leading-tight tracking-widest uppercase">
 								Natural language · Live data
 							</p>
 						</div>
@@ -307,7 +323,7 @@ export default function Chatbot({ trafficContext = {} }) {
 						<button
 							onClick={clearChat}
 							title="Clear chat"
-							className="rounded-lg px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500 transition hover:bg-white/5 hover:text-slate-300"
+							className="rounded-lg px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500 transition hover:bg-indigo-500/10 hover:text-indigo-300"
 						>
 							Clear
 						</button>
@@ -315,7 +331,7 @@ export default function Chatbot({ trafficContext = {} }) {
 						{/* Expand/shrink */}
 						<button
 							onClick={() => setExpanded((v) => !v)}
-							className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition hover:bg-white/5 hover:text-slate-300"
+							className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition hover:bg-indigo-500/10 hover:text-indigo-300"
 						>
 							{expanded ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
 						</button>
@@ -323,7 +339,7 @@ export default function Chatbot({ trafficContext = {} }) {
 						{/* Close */}
 						<button
 							onClick={() => setOpen(false)}
-							className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition hover:bg-white/5 hover:text-slate-300"
+							className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition hover:bg-red-500/10 hover:text-red-400"
 						>
 							<X size={14} />
 						</button>
@@ -331,7 +347,7 @@ export default function Chatbot({ trafficContext = {} }) {
 				</div>
 
 				{/* Messages */}
-				<div className="flex-1 overflow-y-auto px-4 py-4">
+				<div className="flex-1 overflow-y-auto px-4 py-4 bg-[#0c0c18]">
 					<div className="space-y-4">
 						{messages.map((msg, i) => (
 							<Message key={i} msg={msg} />
@@ -339,10 +355,10 @@ export default function Chatbot({ trafficContext = {} }) {
 
 						{loading && (
 							<div className="flex gap-2.5">
-								<div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-cyan-500/15 ring-1 ring-cyan-500/30">
-									<Loader2 size={13} className="animate-spin text-cyan-400" />
+								<div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-400/20 ring-1 ring-indigo-400/40 shadow-[0_0_10px_rgba(99,102,241,0.25)]">
+									<Loader2 size={13} className="animate-spin text-indigo-300" />
 								</div>
-								<div className="rounded-2xl rounded-tl-sm bg-white/[0.06] px-3.5 py-2.5 ring-1 ring-white/8">
+								<div className="rounded-2xl rounded-tl-sm bg-slate-800/50 px-3.5 py-2.5 ring-1 ring-slate-600/30">
 									<TypingDots />
 								</div>
 							</div>
@@ -354,20 +370,20 @@ export default function Chatbot({ trafficContext = {} }) {
 
 				{/* Suggestions */}
 				{showSuggestions && (
-					<div className="flex-shrink-0 space-y-1.5 border-t border-white/[0.07] px-4 py-3">
-						<p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+					<div className="flex-shrink-0 space-y-1.5 border-t border-indigo-500/15 bg-[#0c0c18] px-4 py-3">
+						<p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-indigo-400/50">
 							Try asking
 						</p>
 						{SUGGESTIONS.map((s) => (
 							<button
 								key={s}
 								onClick={() => sendMessage(s)}
-								className="group flex w-full items-center justify-between rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2 text-left text-[12px] text-slate-400 transition hover:border-cyan-500/20 hover:bg-cyan-500/5 hover:text-cyan-300"
+								className="group flex w-full items-center justify-between rounded-xl border border-indigo-500/10 bg-indigo-950/30 px-3 py-2 text-left text-[12px] text-slate-400 transition hover:border-indigo-400/30 hover:bg-indigo-500/10 hover:text-indigo-200 hover:shadow-[0_0_12px_rgba(99,102,241,0.1)]"
 							>
 								<span>{s}</span>
 								<ChevronRight
 									size={12}
-									className="flex-shrink-0 opacity-0 transition group-hover:opacity-60"
+									className="flex-shrink-0 opacity-0 transition group-hover:opacity-70"
 								/>
 							</button>
 						))}
@@ -375,8 +391,59 @@ export default function Chatbot({ trafficContext = {} }) {
 				)}
 
 				{/* Input */}
-				<div className="flex-shrink-0 border-t border-white/[0.07] p-3">
+				<div className="flex-shrink-0 border-t border-indigo-500/15 bg-[#0f0f1a] p-3">
+					{/* Image preview strip */}
+					{pendingImage && (
+						<div className="mb-2 flex items-center gap-2 rounded-xl bg-indigo-950/40 px-3 py-2 ring-1 ring-indigo-500/20">
+							<img
+								src={pendingImage.previewUrl}
+								alt="preview"
+								className="h-10 w-10 rounded-lg object-cover ring-1 ring-indigo-400/30"
+							/>
+							<span className="flex-1 truncate text-[11px] text-slate-400">
+								{pendingImage.file.name}
+							</span>
+							<button
+								onClick={() => setPendingImage(null)}
+								className="flex h-5 w-5 items-center justify-center rounded-full text-slate-500 hover:text-red-400 transition"
+							>
+								<X size={13} />
+							</button>
+						</div>
+					)}
+
+					{/* Hidden file input */}
+					<input
+						ref={fileInputRef}
+						type="file"
+						accept="image/*"
+						className="hidden"
+						onChange={(e) => {
+							const file = e.target.files?.[0];
+							if (!file) return;
+							const previewUrl = URL.createObjectURL(file);
+							setPendingImage({ file, previewUrl });
+							e.target.value = ""; // reset so same file can be re-selected
+						}}
+					/>
+
 					<div className="flex items-end gap-2">
+						{/* Upload button */}
+						<button
+							onClick={() => fileInputRef.current?.click()}
+							disabled={loading}
+							title="Attach image"
+							className={[
+								"flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl transition",
+								pendingImage
+									? "bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-400/40"
+									: "bg-white/5 text-slate-500 hover:bg-indigo-500/10 hover:text-indigo-300",
+								"disabled:opacity-40 disabled:cursor-not-allowed",
+							].join(" ")}
+						>
+							<Paperclip size={15} />
+						</button>
+
 						<textarea
 							ref={(el) => {
 								inputRef.current = el;
@@ -389,12 +456,11 @@ export default function Chatbot({ trafficContext = {} }) {
 							disabled={loading}
 							placeholder="Ask about traffic conditions…"
 							className={[
-								"flex-1 resize-none rounded-xl bg-white/[0.06] px-3.5 py-2.5",
-								"text-[13px] text-slate-200 placeholder-slate-600",
-								"ring-1 ring-white/8 transition",
-								"focus:outline-none focus:ring-cyan-500/30",
+								"flex-1 resize-none rounded-xl px-3.5 py-2.5",
+								"bg-[#0d1520] text-[13px] text-slate-100 placeholder-slate-600",
+								"ring-1 ring-indigo-500/20 transition",
+								"focus:outline-none focus:ring-indigo-400/50 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]",
 								"disabled:opacity-40",
-								"scrollbar-none",
 							].join(" ")}
 							style={{ minHeight: "44px", maxHeight: "120px" }}
 						/>
@@ -404,14 +470,14 @@ export default function Chatbot({ trafficContext = {} }) {
 							className={[
 								"flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl transition",
 								input.trim() && !loading
-									? "bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-900/40"
+									? "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-[0_0_20px_rgba(99,102,241,0.5)] hover:shadow-[0_0_28px_rgba(99,102,241,0.7)] hover:scale-105"
 									: "bg-white/5 text-slate-600 cursor-not-allowed",
 							].join(" ")}
 						>
 							<Send size={15} />
 						</button>
 					</div>
-					<p className="mt-2 text-center text-[10px] text-slate-700">
+					<p className="mt-2 text-center text-[10px] text-slate-600">
 						Enter to send · Shift+Enter for newline
 					</p>
 				</div>
