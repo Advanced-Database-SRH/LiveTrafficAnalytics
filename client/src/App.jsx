@@ -11,14 +11,15 @@ function App() {
 	const [counts, setCounts] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
-
-	const WEATHER_API =
-		"https://api.open-meteo.com/v1/forecast" +
-		"?latitude=43.4799" +
-		"&longitude=110.7624" +
-		"&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code" +
-		"&wind_speed_unit=kmh" +
-		"&timezone=auto";
+	const [weather, setWeather] = useState({
+		condition: "Loading…",
+		temperature: "--°C",
+		humidity: "--%",
+		wind: "-- km/h",
+	});
+	const LAT = 43.4799;
+	const LON = -110.7624;
+	const WEATHER_API = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&temperature_unit=celsius&wind_speed_unit=kmh&timezone=auto`;
 
 	function getWeatherCondition(code) {
 		if (code === 0) return "Clear Sky";
@@ -62,6 +63,27 @@ function App() {
 		fetchTrafficData();
 		const interval = setInterval(fetchTrafficData, 3000);
 		return () => clearInterval(interval);
+	}, []);
+
+	useEffect(() => {
+		async function fetchWeather() {
+			try {
+				const res = await fetch(WEATHER_API);
+				const data = await res.json();
+				const c = data.current;
+				setWeather({
+					condition: getWeatherCondition(c.weather_code),
+					temperature: `${Math.round(c.temperature_2m)}°C`,
+					humidity: `${c.relative_humidity_2m}%`,
+					wind: `${Math.round(c.wind_speed_10m)} km/h`,
+				});
+			} catch (err) {
+				console.error("Weather fetch failed:", err);
+			}
+		}
+		fetchWeather();
+		const weatherInterval = setInterval(fetchWeather, 10 * 60 * 1000);
+		return () => clearInterval(weatherInterval);
 	}, []);
 
 	const totalVehicles = useMemo(() => {
