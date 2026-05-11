@@ -4,7 +4,7 @@ import Chatbot from "./components/Chatbot";
 
 const EVENTS_API = "http://localhost:5000/api/traffic/events";
 const COUNTS_API = "http://localhost:5000/api/traffic/counts";
-const STREAM_URL = 'http://localhost:5000/api/traffic/stream';
+const STREAM_URL = "http://localhost:5000/api/traffic/stream";
 
 function App() {
 	const [events, setEvents] = useState([]);
@@ -12,11 +12,26 @@ function App() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
 
-	const weather = {
-		condition: "Partly Cloudy",
-		temperature: "18°C",
-		wind: "12 km/h",
-	};
+	const WEATHER_API =
+		"https://api.open-meteo.com/v1/forecast" +
+		"?latitude=43.4799" +
+		"&longitude=110.7624" +
+		"&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code" +
+		"&wind_speed_unit=kmh" +
+		"&timezone=auto";
+
+	function getWeatherCondition(code) {
+		if (code === 0) return "Clear Sky";
+		if (code <= 3) return "Partly Cloudy";
+		if (code <= 49) return "Foggy";
+		if (code <= 59) return "Drizzle";
+		if (code <= 69) return "Rain";
+		if (code <= 79) return "Snow";
+		if (code <= 82) return "Rain Showers";
+		if (code <= 86) return "Snow Showers";
+		if (code <= 99) return "Thunderstorm";
+		return "Unknown";
+	}
 
 	async function fetchTrafficData() {
 		try {
@@ -110,7 +125,6 @@ function App() {
 							<h1 className="max-w-3xl text-4xl font-black tracking-tight md:text-5xl">
 								Live Traffic Analytics Dashboard
 							</h1>
-							
 
 							<p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 md:text-base">
 								Real-time vehicle monitoring, weather conditions, traffic
@@ -195,13 +209,11 @@ function App() {
 							LIVE
 						</div>
 
-
-							<img 
-  								src={STREAM_URL}
-  								alt="Live Traffic Feed" 
-								className="absolute inset-0 w-full h-full object-contain" 
-							/>
-
+						<img
+							src={STREAM_URL}
+							alt="Live Traffic Feed"
+							className="absolute inset-0 w-full h-full object-contain"
+						/>
 					</div>
 				</section>
 
