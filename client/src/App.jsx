@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Car, CloudSun, Gauge, Radio, Activity } from "lucide-react";
+import { Car, Thermometer, Gauge, Radio, Activity } from "lucide-react";
 import {
 	Area,
 	AreaChart,
@@ -12,11 +12,19 @@ import {
 	YAxis,
 } from "recharts";
 import Chatbot from "./components/Chatbot";
+import TrafficOverview from "./components/TrafficOverview";
 
 const EVENTS_API = "http://localhost:5000/api/traffic/events";
 const COUNTS_API = "http://localhost:5000/api/traffic/counts";
 const HISTORY_API = "http://localhost:5000/api/traffic/history?type=hourly";
 const STREAM_URL = "http://localhost:5000/api/traffic/stream";
+const WEEKLY_ANALYTICS_API =
+	"http://localhost:5000/api/traffic/analytics/weekly";
+
+const DAILY_ANALYTICS_API = "http://localhost:5000/api/traffic/analytics/daily";
+
+const HOURLY_ANALYTICS_API =
+	"http://localhost:5000/api/traffic/analytics/hours";
 
 function App() {
 	const [events, setEvents] = useState([]);
@@ -24,6 +32,9 @@ function App() {
 	const [history, setHistory] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState("");
+	const [weeklyAnalytics, setWeeklyAnalytics] = useState([]);
+	const [dailyAnalytics, setDailyAnalytics] = useState([]);
+	const [hourlyAnalytics, setHourlyAnalytics] = useState([]);
 	const [weather, setWeather] = useState({
 		condition: "Loading…",
 		temperature: "--°C",
@@ -49,23 +60,43 @@ function App() {
 
 	async function fetchTrafficData() {
 		try {
-			const [eventsRes, countsRes, historyRes] = await Promise.all([
-				fetch(EVENTS_API),
-				fetch(COUNTS_API),
-				fetch(HISTORY_API),
-			]);
+			const [eventsRes, countsRes, historyRes, weeklyRes, dailyRes, hourlyRes] =
+				await Promise.all([
+					fetch(EVENTS_API),
+					fetch(COUNTS_API),
+					fetch(HISTORY_API),
+					fetch(WEEKLY_ANALYTICS_API),
+					fetch(DAILY_ANALYTICS_API),
+					fetch(HOURLY_ANALYTICS_API),
+				]);
 
-			if (!eventsRes.ok || !countsRes.ok || !historyRes.ok) {
+			if (
+				!eventsRes.ok ||
+				!countsRes.ok ||
+				!historyRes.ok ||
+				!weeklyRes.ok ||
+				!dailyRes.ok ||
+				!hourlyRes.ok
+			) {
 				throw new Error("Backend request failed");
 			}
 
 			const eventsData = await eventsRes.json();
 			const countsData = await countsRes.json();
 			const historyData = await historyRes.json();
+			const weeklyData = await weeklyRes.json();
+			const dailyData = await dailyRes.json();
+			const hourlyData = await hourlyRes.json();
 
 			setEvents(eventsData);
 			setCounts(countsData);
 			setHistory(historyData);
+			setWeeklyAnalytics(weeklyData);
+			setDailyAnalytics(dailyData);
+			setHourlyAnalytics(hourlyData);
+			console.log("Weekly:", weeklyAnalytics);
+			console.log("Daily:", dailyAnalytics);
+			console.log("Hourly:", hourlyAnalytics);
 			setError("");
 		} catch (err) {
 			setError("Backend not connected yet");
@@ -191,7 +222,7 @@ function App() {
 			value: weather.temperature,
 			change: weather.condition,
 			note: `Wind speed: ${weather.wind}`,
-			icon: CloudSun,
+			icon: Thermometer,
 			color: "from-amber-400 to-orange-500",
 		},
 	];
@@ -305,43 +336,9 @@ function App() {
 				</section>
 
 				<section className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
-					<div className="rounded-[28px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
-						<div className="mb-6 flex items-center justify-between">
-							<div>
-								<h2 className="text-xl font-bold">Traffic Overview</h2>
-								<p className="text-sm text-slate-500">
-									Live vehicle detections grouped by recent minutes
-								</p>
-							</div>
-							<span className="text-sm font-medium text-slate-400">
-								Recent minutes
-							</span>
-						</div>
+					<TrafficOverview events={events} history={history} />
 
-						<div className="h-80 rounded-[22px] bg-slate-50 p-5">
-							{trafficOverviewData.length > 0 ? (
-								<ResponsiveContainer width="100%" height="100%">
-									<BarChart data={trafficOverviewData}>
-										<CartesianGrid strokeDasharray="3 3" vertical={false} />
-										<XAxis dataKey="time" />
-										<YAxis allowDecimals={false} />
-										<Tooltip />
-										<Bar
-											dataKey="total"
-											name="Vehicles"
-											fill="#2563eb"
-											radius={[14, 14, 0, 0]}
-										/>
-									</BarChart>
-								</ResponsiveContainer>
-							) : (
-								<div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
-									No event data yet
-								</div>
-							)}
-						</div>
-					</div>
-
+					{/* Vehicle Breakdown */}
 					<div className="rounded-[28px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
 						<div className="mb-6 flex items-center justify-between">
 							<div>
@@ -354,68 +351,48 @@ function App() {
 								Live
 							</span>
 						</div>
-
 						<div className="mx-auto flex h-44 w-44 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 via-cyan-400 to-amber-300 text-xl font-black text-white shadow-xl">
 							{trafficStatus}
 						</div>
-
-						<div className="mt-8 space-y-4">
+						<div className="space-y-3">
 							{[
-								["Cars", vehicleBreakdown.car],
-								["Buses", vehicleBreakdown.bus],
-								["Trucks", vehicleBreakdown.truck],
-								["Motorcycles", vehicleBreakdown.motorcycle],
-							].map(([label, value]) => (
-								<div
-									key={label}
-									className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3"
-								>
-									<span className="text-sm font-medium text-slate-600">
-										{label}
-									</span>
-									<strong className="text-slate-950">{value}</strong>
-								</div>
-							))}
+								{ label: "Cars", key: "car", bar: "bg-blue-400" },
+								{ label: "Buses", key: "bus", bar: "bg-purple-400" },
+								{ label: "Trucks", key: "truck", bar: "bg-amber-400" },
+								{
+									label: "Motorcycles",
+									key: "motorcycle",
+									bar: "bg-emerald-400",
+								},
+							].map(({ label, key, bar }) => {
+								const val = vehicleBreakdown[key];
+								const pct =
+									totalVehicles > 0
+										? Math.round((val / totalVehicles) * 100)
+										: 0;
+								return (
+									<div key={key} className="rounded-2xl bg-slate-50 px-4 py-3">
+										<div className="flex items-center justify-between mb-1.5">
+											<span className="text-sm font-medium text-slate-600">
+												{label}
+											</span>
+											<strong className="text-slate-950">
+												{val}{" "}
+												<span className="text-xs font-normal text-slate-400">
+													({pct}%)
+												</span>
+											</strong>
+										</div>
+										<div className="h-1.5 w-full rounded-full bg-slate-200">
+											<div
+												className={`h-full rounded-full transition-all duration-500 ${bar}`}
+												style={{ width: `${pct}%` }}
+											/>
+										</div>
+									</div>
+								);
+							})}
 						</div>
-					</div>
-				</section>
-
-				<section className="mb-6 rounded-[28px] border border-white bg-white p-6 shadow-lg shadow-slate-200/70">
-					<div className="mb-6 flex items-center justify-between">
-						<div>
-							<h2 className="text-xl font-bold">Historical Traffic Trends</h2>
-							<p className="text-sm text-slate-500">
-								Hourly vehicle trend from stored traffic statistics
-							</p>
-						</div>
-						<span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-600">
-							/history
-						</span>
-					</div>
-
-					<div className="h-80 rounded-[22px] bg-slate-50 p-5">
-						{historyChartData.length > 0 ? (
-							<ResponsiveContainer width="100%" height="100%">
-								<AreaChart data={historyChartData}>
-									<CartesianGrid strokeDasharray="3 3" vertical={false} />
-									<XAxis dataKey="time" />
-									<YAxis allowDecimals={false} />
-									<Tooltip />
-									<Area
-										type="monotone"
-										dataKey="total"
-										name="Total Vehicles"
-										stroke="#2563eb"
-										fill="#93c5fd"
-										strokeWidth={3}
-									/>
-								</AreaChart>
-							</ResponsiveContainer>
-						) : (
-							<div className="flex h-full w-full items-center justify-center text-sm text-slate-400">
-								No historical data yet
-							</div>
-						)}
 					</div>
 				</section>
 
