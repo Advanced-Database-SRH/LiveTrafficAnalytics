@@ -17,8 +17,8 @@ r_img = redis.Redis(host='localhost', port=6379, db=0, decode_responses=False)
 
 # --- CONFIGURATION ---
 options={"STREAM_RESOLUTION": "720p"}
-stream = CamGear(source="https://www.youtube.com/watch?v=1EiC9bvVGnk", stream_mode=True, logging=False, **options).start()
-#stream = CamGear(source="https://www.youtube.com/watch?v=dfVK7ld38Ys", stream_mode=True, logging=False, **options).start()
+stream_url = "https://www.youtube.com/watch?v=1EiC9bvVGnk"
+stream = CamGear(source=stream_url, stream_mode=True, logging=False, **options).start()
 
 
 model = YOLO("yolo26n.pt") 
@@ -49,7 +49,12 @@ frame_count = 0
 try:
     while True:
         frame = stream.read()
-        if frame is None: break
+        if frame is None:
+            print("[INFO] Stream lost. Reconnecting in 5 seconds...")
+            stream.stop()       # Stop the dead stream
+            time.sleep(5)       # Wait before retrying to prevent spamming
+            stream = CamGear(source=stream_url, stream_mode=True, logging=False, **options).start()
+            continue            # Skip the rest of the loop and try reading again
         # Processes every other frame (halves processing load).
         frame_count += 1
         if frame_count % 4 != 0:
