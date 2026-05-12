@@ -106,6 +106,7 @@ try:
                         'ent_side': get_side(cx, cy, w, h), 
                         'path': [(cx, cy)], 
                         'ent_time': time.strftime("%H:%M:%S"),
+                        'last_seen_time': time.strftime("%H:%M:%S"),
                         'missing_frames': 0,  # Initialize grace period timer
                         'last_crop': vehicle_crop,
                         'best_crop': vehicle_crop,
@@ -114,7 +115,7 @@ try:
                 else:
                     tracker_data[vid]['path'].append((cx, cy))
                     tracker_data[vid]['missing_frames'] = 0
-
+                    tracker_data[vid]['last_seen_time'] = time.strftime("%H:%M:%S")
                     tracker_data[vid]['last_crop'] = vehicle_crop
 
                     current_area = (x2 - x1) * (y2 - y1)
@@ -137,7 +138,7 @@ try:
                 tracker_data[vid]['missing_frames'] += 1
                 
                 # Increased to 60 frames (approx 2 seconds) to outlast ByteTrack's internal memory
-                if tracker_data[vid]['missing_frames'] > 60:
+                if tracker_data[vid]['missing_frames'] > 15:
                     data = tracker_data[vid]
                     path_len = len(data['path'])
                     has_angle = data['ent_angle'] is not None
