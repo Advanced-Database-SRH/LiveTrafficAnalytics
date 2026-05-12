@@ -56,43 +56,54 @@ async function saveEvent(eventData, imageBuffer, imageVector) {
 
 async function updateAggregates(eventData) {
   try {
-    const date = new Date();
-    const hourBucket = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate(),
-      date.getHours()
-    );
-    const dayBucket = new Date(
-      date.getFullYear(),
-      date.getMonth(),
-      date.getDate()
-    );
+    const ts =
+      eventData.timestamp < 10000000000
+        ? eventData.timestamp * 1000
+        : eventData.timestamp;
+    const date = new Date(ts);
+    const minuteBucket = new Date(date);
+    minuteBucket.setSeconds(0, 0);
+
+    const hourBucket = new Date(date);
+    hourBucket.setMinutes(0, 0, 0);
+
+    const dayBucket = new Date(date);
+    dayBucket.setHours(0, 0, 0, 0);
+
+    const weekBucket = getStartOfWeek(date);
 
     const buckets = [
+      { bucket: minuteBucket, type: "minute" },
       { bucket: hourBucket, type: "hourly" },
       { bucket: dayBucket, type: "daily" },
+      { bucket: weekBucket, type: "weekly" },
     ];
 
     for (const item of buckets) {
-      const updateKey = `counts.${eventData.class}`;
       await TrafficStats.findOneAndUpdate(
         { timebucket: item.bucket, type: item.type },
         {
           $inc: {
             [`counts.${eventData.class}`]: 1,
+            totalCount: 1,
             totalViolations: eventData.isViolation ? 1 : 0,
           },
         },
-        { upsert: true, returnDocument: "after" }
+        { upsert: true }
       );
       console.log(
-        `[AGGREGATE] Updated ${item.type} stats for ${eventData.class}`
+        `[AGGREGATE] Updated all time-scales for ${eventData.class}`
       );
     }
   } catch (error) {
     console.error("Aggregation Error:", error.message);
   }
+}
+function getStartOfWeek(d) {
+    const date = new Date(d);
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(date.setDate(diff)).setHours(0, 0, 0, 0);
 }
 
 module.exports = { saveEvent };

@@ -1,17 +1,25 @@
 const mongoose = require("mongoose");
 
-const trafficStatsSchema = new mongoose.Schema({
-  timebucket: { type: Date, required: true },
-  type: { type: String, enum: ["hourly", "daily", "monthly"] },
-  counts: {
-    car: { type: Number, default: 0 },
-    truck: { type: Number, default: 0 },
-    bus: { type: Number, default: 0 },
-    motorcycle: { type: Number, default: 0 }
-  },
-  totalViolations: { type: Number, default: 0 },
-});
+const trafficStatsSchema = new mongoose.Schema(
+  {
+    timebucket: { type: Date, required: true },
+    type: {
+      type: String,
+      enum: ["minute", "hour", "day", "week"],
+      required: true,
+    },
 
-trafficStatsSchema.index({ timebucket: -1, type: 1 }, { unique: true });
+    vehicleCount: { type: Number, default: 0 },
+    counts: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
+    totalViolations: { type: Number, default: 0 },
+  },
+  { timestamps: true }
+);
+
+trafficStatsSchema.index({ timebucket: 1, type: 1 }, { unique: true });
 
 module.exports = mongoose.model("TrafficStats", trafficStatsSchema);

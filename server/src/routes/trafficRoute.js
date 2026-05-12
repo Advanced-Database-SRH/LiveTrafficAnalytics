@@ -38,6 +38,48 @@ router.get("/history", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+router.get("/analytics/minutes", async (req, res) => {
+    try {
+        const stats = await TrafficStats.find({ type: 'minute' })
+            .sort({ timebucket: -1 })
+            .limit(60); // Last 60 minutes
+        res.json(stats);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+//Hours
+router.get("/analytics/hours", async (req, res) => {
+  try {
+    const data = await TrafficStats.find({ type: 'hourly' })
+      .sort({ timebucket: -1 })
+      .limit(24);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+//Days
+router.get("/analytics/daily", async (req, res) => {
+  try {
+    const data = await TrafficStats.find({ type: 'daily' })
+      .sort({ timebucket: -1 })
+      .limit(7);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+router.get("/analytics/weekly", async (req, res) => {
+  try {
+    const data = await TrafficStats.find({ type: 'weekly' })
+      .sort({ timebucket: -1 })
+      .limit(4);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.get('/ask', async (req, res) => {
     try {
