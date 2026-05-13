@@ -8,19 +8,19 @@ async function processChatRequest(imageBuffer, userQuestion) {
     let imageVector = null;
     let textVector = null;
 
-    // Auto-convert any format (PNG, WebP, etc.) to JPEG before processing
-    let processedImageBuffer = imageBuffer;
-
-    try {
-        console.log("Converting PNG to JPEG using Jimp...");
-        const image = await Jimp.read(imageBuffer);
-        processedImageBuffer = await image.getBuffer('image/jpeg');
-    } catch (err) {
-        console.error("Image conversion failed:", err.message);
-        throw new Error("Failed to process the uploaded image.");
-    }
-
     if (imageBuffer) {
+    // Auto-convert any format (PNG, WebP, etc.) to JPEG before processing
+        let processedImageBuffer = imageBuffer;
+
+        try {
+            console.log("Converting PNG to JPEG using Jimp...");
+            const image = await Jimp.read(imageBuffer);
+            processedImageBuffer = await image.getBuffer('image/jpeg');
+        } catch (err) {
+            console.error("Image conversion failed:", err.message);
+            throw new Error("Failed to process the uploaded image.");
+        }
+
         imageVector = await embedImageBuffer(processedImageBuffer);
     }
 
