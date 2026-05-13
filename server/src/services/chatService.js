@@ -1,9 +1,22 @@
 const { embedImageBuffer } = require('./embeddingService');
 const { searchByVisualMatch } = require('./qdrantService');
 const { generateResponse } = require('./groqService');
+const { Jimp } = require('jimp');
 
 async function processChatRequest(imageBuffer, userQuestion) {
-    const queryVector = await embedImageBuffer(imageBuffer);
+    // Auto-convert any format (PNG, WebP, etc.) to JPEG before processing
+    let processedImageBuffer = imageBuffer;
+
+    try {
+        console.log("Converting PNG to JPEG using Jimp...");
+        const image = await Jimp.read(imageBuffer);
+        processedImageBuffer = await image.getBuffer('image/jpeg');
+    } catch (err) {
+        console.error("Image conversion failed:", err.message);
+        throw new Error("Failed to process the uploaded image.");
+    }
+
+    const queryVector = await embedImageBuffer(processedImageBuffer);
     
     if (!queryVector) {
         throw new Error("Failed to process the uploaded image.");
