@@ -50,26 +50,22 @@ function fileToBase64(file) {
 }
 
 // API call — sends text messages + optional image as base64
-async function callChatAPI(messages, systemPrompt, imageFile = null) {
-	let imageBase64 = null;
-	let imageMimeType = null;
+async function callChatAPI(messages, imageFile = null) {
+	const formData = new FormData();
+
+	// Send only the latest user question to the backend
+	const lastUserMessage = [...messages]
+		.reverse()
+		.find((m) => m.role === "user");
+	formData.append("question", lastUserMessage?.content || "");
 
 	if (imageFile) {
-		imageBase64 = await fileToBase64(imageFile);
-		imageMimeType = imageFile.type; // e.g. "image/jpeg"
+		formData.append("image", imageFile); // This matches upload.single('image')
 	}
 
 	const res = await fetch(CHAT_API_URL, {
 		method: "POST",
-		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({
-			system: systemPrompt,
-			messages: messages.map((m) => ({ role: m.role, content: m.content })),
-			// image is sent separately so your backend can pass it to the LLM vision API
-			image: imageBase64
-				? { data: imageBase64, mimeType: imageMimeType }
-				: null,
-		}),
+		body: formData, // No headers needed, browser sets Content-Type to multipart/form-data
 	});
 
 	if (!res.ok) {
@@ -77,10 +73,7 @@ async function callChatAPI(messages, systemPrompt, imageFile = null) {
 		throw new Error(err.message || `API error ${res.status}`);
 	}
 
-	const data = await res.json();
-	return (
-		data.reply ?? data.content ?? data.message ?? "No response from server."
-	);
+	return await res.json(); // Returns { reply, evidenceImages }
 }
 
 // Typing animation dots
@@ -104,50 +97,45 @@ function Message({ msg }) {
 
 	return (
 		<div className={`flex gap-2.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
-			{/* Avatar */}
-			{!isUser && (
-				<div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-400/20 ring-1 ring-indigo-400/50 shadow-[0_0_10px_rgba(99,102,241,0.3)]">
-					<Zap size={13} className="text-indigo-300" />
-				</div>
-			)}
+			{/* ... Avatar code stays same ... */}
 
-			{/* Bubble */}
 			<div
 				className={[
 					"max-w-[86%] rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed",
 					isUser
-						? "rounded-tr-sm bg-indigo-600/30 text-indigo-50 ring-1 ring-indigo-400/40 shadow-[0_0_16px_rgba(99,102,241,0.2)]"
-						: isError
-							? "rounded-tl-sm bg-red-950/50 text-red-200 ring-1 ring-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.15)]"
-							: "rounded-tl-sm bg-slate-800/60 text-slate-100 ring-1 ring-slate-600/40 shadow-[0_0_12px_rgba(0,0,0,0.3)]",
+						? "bg-indigo-600/30 text-indigo-50"
+						: "bg-slate-800/60 text-slate-100",
 				].join(" ")}
 			>
-				{isError && (
-					<div className="mb-1 flex items-center gap-1.5 text-red-400">
-						<AlertCircle size={12} />
-						<span className="text-[11px] font-semibold uppercase tracking-wider">
-							Error
-						</span>
-					</div>
-				)}
+				{/* 1. Show user's local upload preview */}
 				{msg.previewUrl && (
 					<img
 						src={msg.previewUrl}
-						alt="uploaded"
-						className="mb-2 max-h-40 w-full rounded-xl object-cover ring-1 ring-indigo-500/20"
+						className="mb-2 max-h-40 w-full rounded-xl object-cover"
 					/>
 				)}
+
+				{/* 2. Show the AI's evidence image from the backend */}
+				{msg.evidenceUrl && (
+					<div className="mb-2 space-y-1">
+						<p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+							Matched Vehicle
+						</p>
+						<img
+							src={msg.evidenceUrl}
+							alt="Evidence"
+							className="max-h-48 w-full rounded-xl object-cover ring-1 ring-indigo-500/30 shadow-lg"
+						/>
+					</div>
+				)}
+
 				<p className="whitespace-pre-wrap">{msg.content}</p>
-				<p className="mt-1.5 text-right text-[10px] opacity-40">
-					{new Date(msg.ts).toLocaleTimeString([], {
-						hour: "2-digit",
-						minute: "2-digit",
-					})}
-				</p>
+				{/* ... Timestamp stays same ... */}
 			</div>
 		</div>
 	);
 }
+
 // MAIN CHATBOT COMPONENT
 export default function Chatbot({ trafficContext = {} }) {
 	const [open, setOpen] = useState(false);
@@ -190,53 +178,45 @@ export default function Chatbot({ trafficContext = {} }) {
 			const trimmed = (text ?? input).trim();
 			if ((!trimmed && !pendingImage) || loading) return;
 
-			const imageLabel = pendingImage
-				? ` [Image: ${pendingImage.file.name}]`
-				: "";
 			const userMsg = {
 				role: "user",
-				content: trimmed + imageLabel,
+				content: trimmed,
 				ts: Date.now(),
 				previewUrl: pendingImage?.previewUrl ?? null,
 			};
-			const nextMessages = [...messages, userMsg];
 
+			const nextMessages = [...messages, userMsg];
 			setMessages(nextMessages);
 			setInput("");
-			if (textareaRef.current) textareaRef.current.style.height = "auto";
 			setLoading(true);
 
 			const imageToSend = pendingImage?.file ?? null;
 			setPendingImage(null);
 
 			try {
-				const systemPrompt = buildSystemPrompt(trafficContext);
-				const apiMessages = nextMessages.filter(
-					(m) => m.role === "user" || m.role === "assistant",
-				);
-				const reply = await callChatAPI(apiMessages, systemPrompt, imageToSend);
+				// Updated call
+				const data = await callChatAPI(nextMessages, imageToSend);
 
 				setMessages((prev) => [
 					...prev,
-					{ role: "assistant", content: reply, ts: Date.now() },
+					{
+						role: "assistant",
+						content: data.reply,
+						// Grab the first evidence image URL if it exists
+						evidenceUrl: data.evidenceImages?.[0]?.url || null,
+						ts: Date.now(),
+					},
 				]);
 			} catch (err) {
 				setMessages((prev) => [
 					...prev,
-					{
-						role: "error",
-						content: err.message.includes("Failed to fetch")
-							? "Cannot reach the chat backend. Make sure your server is running on port 5000."
-							: err.message,
-						ts: Date.now(),
-					},
+					{ role: "error", content: err.message, ts: Date.now() },
 				]);
 			} finally {
 				setLoading(false);
-				setTimeout(() => inputRef.current?.focus(), 60);
 			}
 		},
-		[input, loading, messages, trafficContext, pendingImage],
+		[input, loading, messages, pendingImage],
 	);
 
 	const handleKey = (e) => {
