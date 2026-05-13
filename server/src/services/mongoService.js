@@ -1,5 +1,5 @@
 const path = require("path");
-const fs   = require("fs");
+const fs = require("fs");
 
 const VehicleEvent = require("../models/VehicleEvent");
 const { getCurrentWeather } = require("./weatherService");
@@ -11,21 +11,21 @@ const TrafficStats = require("../models/TrafficStats");
 const IMG_DIR = path.resolve(__dirname, "../../assets/img");
 
 if (!fs.existsSync(IMG_DIR)) {
-    fs.mkdirSync(IMG_DIR, { recursive: true });
+  fs.mkdirSync(IMG_DIR, { recursive: true });
 }
 
 function saveImageToDisk(imageBuffer, vehicleId) {
-    if (!imageBuffer) return null;
- 
-    try {
-        const filename = `vehicle_${vehicleId}_${Date.now()}.jpg`;
-        const filepath  = path.join(IMG_DIR, filename);
-        fs.writeFileSync(filepath, imageBuffer);
-        return `assets/img/${filename}`;
-    } catch (err) {
-        console.error("[MongoService] Failed to save image to disk:", err.message);
-        return null;
-    }
+  if (!imageBuffer) return null;
+
+  try {
+    const filename = `vehicle_${vehicleId}_${Date.now()}.jpg`;
+    const filepath = path.join(IMG_DIR, filename);
+    fs.writeFileSync(filepath, imageBuffer);
+    return `assets/img/${filename}`;
+  } catch (err) {
+    console.error("[MongoService] Failed to save image to disk:", err.message);
+    return null;
+  }
 }
 
 async function saveEvent(eventData, imageBuffer, imageVector) {
@@ -33,8 +33,8 @@ async function saveEvent(eventData, imageBuffer, imageVector) {
     const imagePath = saveImageToDisk(imageBuffer, eventData.vehicle_id);
 
     const event = new VehicleEvent({
-        ...eventData,
-        ...(imagePath && { image_path: imagePath }),
+      ...eventData,
+      ...(imagePath && { image_path: imagePath }),
     });
     await event.save();
     console.log(`[MongoService] Saved ${event.class} ID:${event.vehicle_id}`);
@@ -85,25 +85,23 @@ async function updateAggregates(eventData) {
         {
           $inc: {
             [`counts.${eventData.class}`]: 1,
-            totalCount: 1,
+            vehicleCount: 1,
             totalViolations: eventData.isViolation ? 1 : 0,
           },
         },
         { upsert: true }
       );
-      console.log(
-        `[AGGREGATE] Updated all time-scales for ${eventData.class}`
-      );
+      console.log(`[AGGREGATE] Updated all time-scales for ${eventData.class}`);
     }
   } catch (error) {
     console.error("Aggregation Error:", error.message);
   }
 }
 function getStartOfWeek(d) {
-    const date = new Date(d);
-    const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(date.setDate(diff)).setHours(0, 0, 0, 0);
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(date.setDate(diff)).setHours(0, 0, 0, 0);
 }
 
 module.exports = { saveEvent };
