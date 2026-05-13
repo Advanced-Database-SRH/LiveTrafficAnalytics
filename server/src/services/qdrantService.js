@@ -132,4 +132,51 @@ async function searchByVisualMatch(queryVector) {
     };
 }
 
-module.exports = { ensureCollections, upsertTextEmbedding, searchTrafficContext, upsertVisualVector, searchByVisualMatch};
+async function searchMultimodal(imageVector = null, textVector = null, limit = 5) {
+    let combinedResults = [];
+
+    if (imageVector) {
+        const visualHits = await qdrant.search(VISION_COLLECTION, {
+            vector: imageVector,
+            limit: limit,
+            with_payload: true
+        });
+        combinedResults.push(...visualHits.map(h => ({ ...h.payload, score: h.score })));
+    }
+
+    if (textVector) {
+        const textHits = await qdrant.search(TEXT_COLLECTION, {
+            vector: textVector,
+            limit: limit,
+            with_payload: true
+        });
+        combinedResults.push(...textHits.map(h => ({ ...h.payload, score: h.score })));
+    }
+
+    const uniqueMap = new Map();
+    for (const item of combinedResults) {
+        if (!uniqueMap.has(item.mongo_id)) {
+            uniqueMap.set(item.mongo_id, item);
+        }
+        if (uniqueMap.size >= limit) break;
+    }
+
+    const finalItems = Array.from(uniqueMap.values());
+
+    return await Promise.all(finalItems.map(async (item) => {
+        if (item.sentence) return item;
+
+        const textData = await qdrant.scroll(TEXT_COLLECTION, {
+            filter: { must: [{ key: 'mongo_id', match: { value: item.mongo_id } }] },
+            limit: 1,
+            with_payload: true
+        });
+        
+        return {
+            ...item,
+            sentence: textData.points[0]?.payload.sentence || "No description available."
+        };
+    }));
+}
+
+module.exports = { ensureCollections, upsertTextEmbedding, searchTrafficContext, upsertVisualVector, searchByVisualMatch, searchMultimodal};
