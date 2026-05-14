@@ -1,5 +1,5 @@
 const { embedText, embedImageBuffer } = require('./embeddingService');
-const { searchByVisualMatch, searchMultimodal } = require('./qdrantService');
+const { searchMultimodal } = require('./qdrantService');
 const { generateResponse } = require('./groqService');
 const { Jimp } = require('jimp');
 

@@ -5,7 +5,7 @@ const VehicleEvent = require("../models/VehicleEvent");
 const { getCurrentWeather } = require("./weatherService");
 const { embedText } = require("./embeddingService");
 const { buildSentence } = require("../utils/sentanceBuilder");
-const { upsertTextEmbedding, upsertVisualVector } = require("./qdrantService");
+const { upsertVehicle } = require("./qdrantService");
 const TrafficStats = require("../models/TrafficStats");
 
 const IMG_DIR = path.resolve(__dirname, "../../assets/img");
@@ -41,12 +41,9 @@ async function saveEvent(eventData, imageBuffer, imageVector) {
 
     const weather = await getCurrentWeather();
     const sentence = buildSentence(event, weather);
-    const embedding = await embedText(sentence);
-    await upsertTextEmbedding(event, sentence, embedding, weather);
+    const textVector = await embedText(sentence);
 
-    if (imageVector) {
-      await upsertVisualVector(event, imageVector, weather);
-    }
+    await upsertVehicle(event, sentence, textVector, imageVector, weather);
 
     await updateAggregates(eventData);
   } catch (error) {
