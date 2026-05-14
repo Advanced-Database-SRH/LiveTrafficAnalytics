@@ -14,7 +14,6 @@ import {
 
 const TABS = ["Hourly", "Daily", "Weekly"];
 
-// LAT 43.4799, LON -110.7624 → Jackson, Wyoming → Mountain Time
 const TIMEZONE = "America/Denver";
 
 const COLORS = {
@@ -25,9 +24,6 @@ const COLORS = {
 	total: { stroke: "#2563eb", fill: "#93c5fd" },
 };
 
-// ── Timezone-aware helpers
-
-/** Format a Date (or ms timestamp) into a locale string using the configured timezone */
 function formatInTZ(date, options) {
 	return new Intl.DateTimeFormat("en-GB", {
 		...options,
@@ -35,7 +31,6 @@ function formatInTZ(date, options) {
 	}).format(date instanceof Date ? date : new Date(date));
 }
 
-/** Return "YYYY-Www" ISO week string for grouping, in configured timezone */
 function isoWeekKey(date) {
 	const parts = new Intl.DateTimeFormat("en-GB", {
 		timeZone: TIMEZONE,
@@ -55,15 +50,13 @@ function isoWeekKey(date) {
 	return `${thursday.getFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-/** Get "YYYY-MM-DD" in configured timezone for a given Date */
 function localDateStr(date) {
 	return formatInTZ(date, { year: "numeric", month: "2-digit", day: "2-digit" })
 		.split("/")
 		.reverse()
-		.join("-"); // dd/mm/yyyy → yyyy-mm-dd
+		.join("-");
 }
 
-// ── Custom tooltip shared across all charts
 function ChartTooltip({ active, payload, label }) {
 	if (!active || !payload?.length) return null;
 	return (
@@ -82,7 +75,6 @@ function ChartTooltip({ active, payload, label }) {
 	);
 }
 
-// ── Hourly tab — full day (00:00–23:00) grouped by hour in Berlin time
 function HourlyChart({ history }) {
 	const data = useMemo(() => {
 		const todayStr = localDateStr(new Date());
@@ -110,7 +102,6 @@ function HourlyChart({ history }) {
 			hourMap[label].motorcycle += c.motorcycle || 0;
 		});
 
-		// Ensure all 24 hour slots exist (fill missing with 0)
 		const allHours = Array.from({ length: 24 }, (_, i) => {
 			const label = `${String(i).padStart(2, "0")}:00`;
 			return (
@@ -167,14 +158,11 @@ function HourlyChart({ history }) {
 	);
 }
 
-// ── Daily tab — all 7 days of the current week (Mon–Sun) in Berlin time
 function DailyChart({ history }) {
 	const data = useMemo(() => {
-		// Determine Mon–Sun of current week in Berlin time
 		const now = new Date();
 		const todayStr = localDateStr(now);
 
-		// Find Monday of current week (Berlin local)
 		const dayOfWeek = new Date(
 			formatInTZ(now, {
 				year: "numeric",
@@ -183,7 +171,7 @@ function DailyChart({ history }) {
 				weekday: "long",
 			}),
 		);
-		// Build 7 day keys starting from Monday
+
 		const berlinNowParts = new Intl.DateTimeFormat("en-GB", {
 			timeZone: TIMEZONE,
 			year: "numeric",
@@ -196,7 +184,7 @@ function DailyChart({ history }) {
 		const localToday = new Date(
 			`${berlinNowParts.year}-${berlinNowParts.month}-${berlinNowParts.day}T00:00:00`,
 		);
-		const dow = localToday.getDay(); // 0=Sun
+		const dow = localToday.getDay();
 		const mondayOffset = dow === 0 ? -6 : 1 - dow;
 		const monday = new Date(localToday);
 		monday.setDate(localToday.getDate() + mondayOffset);
@@ -284,7 +272,6 @@ function DailyChart({ history }) {
 	);
 }
 
-// ── Weekly tab — 4–5 weeks of the current month grouped by ISO week
 function WeeklyChart({ history }) {
 	const data = useMemo(() => {
 		const now = new Date();
@@ -296,14 +283,14 @@ function WeeklyChart({ history }) {
 			.formatToParts(now)
 			.reduce((acc, p) => ({ ...acc, [p.type]: p.value }), {});
 
-		const currentMonth = `${berlinNowParts.year}-${berlinNowParts.month}`; // "YYYY-MM"
+		const currentMonth = `${berlinNowParts.year}-${berlinNowParts.month}`;
 
 		const weekMap = {};
 
 		history.forEach((item) => {
 			const d = new Date(item.timebucket);
-			// Only include items whose Berlin date falls in current month
-			const dateStr = localDateStr(d); // "YYYY-MM-DD"
+
+			const dateStr = localDateStr(d);
 			if (!dateStr.startsWith(currentMonth)) return;
 
 			const weekKey = isoWeekKey(d);
@@ -369,7 +356,6 @@ function Empty({ label = "No event data yet" }) {
 	);
 }
 
-// ── Main export
 export default function TrafficOverview({ events, history }) {
 	const [activeTab, setActiveTab] = useState("Hourly");
 

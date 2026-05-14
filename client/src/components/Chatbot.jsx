@@ -22,24 +22,6 @@ const SUGGESTIONS = [
 	"Summarise the traffic conditions right now",
 ];
 
-function buildSystemPrompt(ctx) {
-	return `You are a traffic analysis assistant embedded in a live traffic monitoring dashboard.
-
-Current live data snapshot:
-- Total vehicles detected: ${ctx.totalVehicles}
-- Traffic density status: ${ctx.trafficStatus}
-- Vehicle breakdown: Cars=${ctx.vehicleBreakdown?.car ?? 0}, Buses=${ctx.vehicleBreakdown?.bus ?? 0}, Trucks=${ctx.vehicleBreakdown?.truck ?? 0}, Motorcycles=${ctx.vehicleBreakdown?.motorcycle ?? 0}
-- Total stored events: ${ctx.eventCount}
-- Weather: ${ctx.weather?.condition ?? "Unknown"}, ${ctx.weather?.temperature ?? ""}, Wind ${ctx.weather?.wind ?? ""}
-
-Your role:
-- Answer natural language questions about traffic conditions, vehicle counts, flow rates, and anomalies.
-- Use the live data above when answering. Be concise and precise — this is a monitoring tool, not a chat app.
-- If asked about historical trends or patterns you don't have data for, say so clearly.
-- Format numbers clearly. Use bullet points sparingly.
-- Keep answers under 120 words unless a detailed breakdown is explicitly requested.`;
-}
-
 function fileToBase64(file) {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
