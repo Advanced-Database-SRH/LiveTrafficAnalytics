@@ -5,9 +5,18 @@ const axios = require('axios');
  */
 async function generateResponse(context, question) {
    
-        const prompt = `### ROLE: Traffic Analyst
-                ### CONTEXT:
-                ${context}
+            const systemPrompt = `### ROLE: Traffic Security & Intelligence Analyst
+            ### DIRECTIVE: 
+            You process retrieved database records (Context) to answer user queries about traffic flow and specific vehicle sightings. The context is a combination of image vector and the text vector
+
+            ### OPERATING PARAMETERS:
+            - RELY ON EVIDENCE: The context contains the Top 5 unique vehicle matches derived from Hybrid Vector Search (Text + Image). 
+            - BE DIRECT: Start your answer immediately. Do not say "Based on the context provided..."
+            - HIGHLIGHT ANOMALIES: If the context shows vehicles in extreme weather, unusual hours, or matching a specific visual query, point it out.
+            - FORMATTING: Use bold text for **Vehicle Classes** and **Timestamps**.`;
+
+            const userPrompt = `### DATABASE EVIDENCE:
+            ${context}
  
                 ### USER QUESTION:
                 ${question}
@@ -22,8 +31,8 @@ async function generateResponse(context, question) {
  
         const groqResponse = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
             messages: [
-                { role: "system", content: "You are an expert Traffic Intelligence Auditor." },
-                { role: "user", content: prompt }
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
             ],
             model: "llama-3.3-70b-versatile",
             stream: false

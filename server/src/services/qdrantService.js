@@ -67,23 +67,36 @@ async function upsertVehicle(event, sentence, textVector, imageVector, weather) 
 
 async function searchMultimodal(imageVector = null, textVector = null, limit = 5) {
     let combinedResults = [];
+    
+    const isHybrid = imageVector && textVector;
+    const fetchLimit = isHybrid ? 20 : limit;
 
     if (imageVector) {
         const visualHits = await qdrant.search(COLLECTION_NAME, {
             vector: { name: 'image', vector: imageVector },
-            limit: limit,
+            limit: fetchLimit,
+            score_threshold: 0.85, 
             with_payload: true
         });
-        combinedResults.push(...visualHits.map(h => ({ ...h.payload, score: h.score })));
+        combinedResults.push(...visualHits.map(h => ({ 
+            ...h.payload, 
+            score: h.score, 
+            fromImage: true 
+        })));
     }
 
     if (textVector) {
         const textHits = await qdrant.search(COLLECTION_NAME, {
             vector: { name: 'text', vector: textVector }, 
-            limit: limit,
+            limit: fetchLimit,
+            score_threshold: 0.30,
             with_payload: true
         });
-        combinedResults.push(...textHits.map(h => ({ ...h.payload, score: h.score })));
+        combinedResults.push(...textHits.map(h => ({ 
+            ...h.payload, 
+            score: h.score, 
+            fromText: true 
+        })));
     }
 
     const uniqueMap = new Map();
@@ -93,6 +106,14 @@ async function searchMultimodal(imageVector = null, textVector = null, limit = 5
         } else {
             const existing = uniqueMap.get(item.mongo_id);
             existing.score += item.score; 
+            
+            if ((existing.fromImage && item.fromText) || (existing.fromText && item.fromImage)) {
+                existing.score += 10.0; 
+            }
+            
+            existing.fromImage = existing.fromImage || item.fromImage;
+            existing.fromText = existing.fromText || item.fromText;
+            
             uniqueMap.set(item.mongo_id, existing);
         }
     }
