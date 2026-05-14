@@ -5,16 +5,20 @@ async function handleChat(req, res) {
         const userQuestion = req.body.question;
         const imageBuffer = req.file ? req.file.buffer : null;
 
-        if (!imageBuffer) {
-            return res.status(400).json({ error: "Please upload an image to search." });
-        }
-        if (!userQuestion) {
-            return res.status(400).json({ error: "Please ask a question about the image." });
+        if (!imageBuffer && !userQuestion) {
+            return res.status(400).json({
+                error: 'Please provide an image, a question, or both.',
+            });
         }
 
         const result = await chatService.processChatRequest(imageBuffer, userQuestion);
 
-        res.status(200).json(result);
+        // res.status(200).json(result);
+
+        return res.status(200).json({
+            reply: result.answer,
+            evidenceImages: result.evidenceImages,
+        });
     } catch (error) {
         console.error("[ChatController] Error:", error.message);
         
