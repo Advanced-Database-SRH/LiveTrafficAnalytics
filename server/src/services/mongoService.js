@@ -53,6 +53,20 @@ async function saveEvent(eventData, imageBuffer, imageVector) {
 
 async function updateAggregates(eventData) {
   try {
+    const calculateDuration = (ent, ext) => {
+      if (!ent || !ext) return 0;
+      const start = new Date(`1970-01-01T${ent}Z`);
+      const end = new Date(`1970-01-01T${ext}Z`);
+      const diff = (end - start) / 1000;
+      if (diff > 0 && diff < 5) {
+        diff += 15.0;
+      }
+      return diff > 0 ? diff : 0;
+    };
+    const travelDuration = calculateDuration(
+      eventData.entry_time,
+      eventData.exit_time
+    );
     const ts =
       eventData.timestamp < 10000000000
         ? eventData.timestamp * 1000
@@ -83,6 +97,7 @@ async function updateAggregates(eventData) {
           $inc: {
             [`counts.${eventData.class}`]: 1,
             totalCount: 1,
+            totalTravelTime: travelDuration,
             totalViolations: eventData.isViolation ? 1 : 0,
           },
         },

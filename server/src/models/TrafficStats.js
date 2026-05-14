@@ -5,11 +5,12 @@ const trafficStatsSchema = new mongoose.Schema(
     timebucket: { type: Date, required: true },
     type: {
       type: String,
-      enum: ["minute", "hour", "day", "week"],
+      enum: ["minute", "hourly", "daily", "weekly"],
       required: true,
     },
 
     vehicleCount: { type: Number, default: 0 },
+    totalTravelTime: { type: Number, default: 0 },
     counts: {
       type: Map,
       of: Number,

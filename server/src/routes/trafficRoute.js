@@ -2,10 +2,10 @@ const express = require("express");
 const router = express.Router();
 const VehicleEvent = require("../models/VehicleEvent");
 const TrafficStats = require("../models/TrafficStats");
-
-const { searchTrafficContext } = require('../services/qdrantService');
-const { embedText } = require('../services/embeddingService');
-const { generateResponse } = require('../services/groqService');
+const trafficController = require("../controllers/trafficController");
+const { searchTrafficContext } = require("../services/qdrantService");
+const { embedText } = require("../services/embeddingService");
+const { generateResponse } = require("../services/groqService");
 
 router.get("/events", async (req, res) => {
   try {
@@ -38,67 +38,37 @@ router.get("/history", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-router.get("/analytics/minutes", async (req, res) => {
-    try {
-        const stats = await TrafficStats.find({ type: 'minute' })
-            .sort({ timebucket: -1 })
-            .limit(60); // Last 60 minutes
-        res.json(stats);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-//Hours
-router.get("/analytics/hours", async (req, res) => {
+router.get("/analytics/minutes", trafficController.getMinuteStats);
+
+router.get("/analytics/hours", trafficController.getHourlyStats);
+
+router.get("/analytics/daily", trafficController.getDailyStats);
+
+router.get("/analytics/weekly", trafficController.getWeeklyStats);
+
+router.get("/analytics/density", trafficController.getDensityStats);
+
+router.get("/analytics/flow", trafficController.getAverageFlow);
+
+router.get("/ask", async (req, res) => {
   try {
-    const data = await TrafficStats.find({ type: 'hourly' })
-      .sort({ timebucket: -1 })
-      .limit(24);
-    res.json(data);
+    const { question } = req.query;
+    if (!question)
+      return res.status(400).json({ error: "What is your question?" });
+
+    // 1. Convert question to vector
+    const queryVector = await embedText(question);
+
+    // 2. Fetch relevant context from Qdrant
+    const context = await searchTrafficContext(queryVector);
+
+    // 3. Get answer from Groq
+    const answer = await generateResponse(context, question);
+
+    res.json({ question, answer });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
-//Days
-router.get("/analytics/daily", async (req, res) => {
-  try {
-    const data = await TrafficStats.find({ type: 'daily' })
-      .sort({ timebucket: -1 })
-      .limit(7);
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-router.get("/analytics/weekly", async (req, res) => {
-  try {
-    const data = await TrafficStats.find({ type: 'weekly' })
-      .sort({ timebucket: -1 })
-      .limit(4);
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.get('/ask', async (req, res) => {
-    try {
-        const { question } = req.query;
-        if (!question) return res.status(400).json({ error: "What is your question?" });
-
-        // 1. Convert question to vector
-        const queryVector = await embedText(question);
-
-        // 2. Fetch relevant context from Qdrant
-        const context = await searchTrafficContext(queryVector);
-
-        // 3. Get answer from Groq
-        const answer = await generateResponse(context, question);
-
-        res.json({ question, answer });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
 });
 
 module.exports = router;
