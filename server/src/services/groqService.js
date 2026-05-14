@@ -10,10 +10,11 @@ async function generateResponse(context, question) {
             You process retrieved database records (Context) to answer user queries about traffic flow and specific vehicle sightings. The context is a combination of image vector and the text vector
 
             ### OPERATING PARAMETERS:
-            - RELY ON EVIDENCE: The context contains the Top 5 unique vehicle matches derived from Hybrid Vector Search (Text + Image). 
-            - BE DIRECT: Start your answer immediately. Do not say "Based on the context provided..."
-            - HIGHLIGHT ANOMALIES: If the context shows vehicles in extreme weather, unusual hours, or matching a specific visual query, point it out.
-            - FORMATTING: Use bold text for **Vehicle Classes** and **Timestamps**.`;
+            - TWO TYPES OF CONTEXT: You will either receive "SPECIFIC VEHICLE SIGHTINGS" or "AGGREGATED DAILY TRAFFIC STATISTICS".
+            - IF SPECIFIC SIGHTINGS: Highlight anomalies. Use bold text for **Vehicle Classes** and **Timestamps**.
+            - IF STATISTICS: Analyze the numbers naturally. If the user asks about "yesterday," look at the dates provided in the context to determine which day is yesterday based on today's current date. 
+            - BE DIRECT: Start your answer immediately. Do not say "Based on the context provided...". Just give the answer.
+            - IF NO RELEVANT CONTEXT: Respond with a helpful message indicating the lack of relevant information.`
 
             const userPrompt = `### DATABASE EVIDENCE:
             ${context}
