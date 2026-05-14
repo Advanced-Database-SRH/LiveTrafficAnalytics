@@ -83,6 +83,8 @@ router.get("/analytics/weekly", async (req, res) => {
 
 router.get("/analytics/density", trafficController.getDensityStats);
 
+router.get("/analytics/flow", trafficController.getAverageFlow);
+
 router.get("/ask", async (req, res) => {
   try {
     const { question } = req.query;
