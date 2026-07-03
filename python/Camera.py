@@ -11,7 +11,6 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 
 tracker_path = os.path.join(script_dir, "custom_tracker.yaml")
 
-# --- Redis Connection ---
 r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 r_img = redis.Redis(host='localhost', port=6379, db=0, decode_responses=False)
 
@@ -66,8 +65,7 @@ try:
 
         results = model.track(
             frame,
-            persist=True,
-            #tracker="bytetrack.yaml", 
+            persist=True, 
             tracker=tracker_path,
             verbose=False,
             conf=0.15,
@@ -77,7 +75,6 @@ try:
         
         annotated_frame = results[0].plot(conf=False)
         display_frame = cv2.resize(annotated_frame, (0, 0), fx=0.5, fy=0.5)
-        #cv2.imshow("Live Traffic Stream", display_frame)
         
         success, buffer = cv2.imencode('.jpg', display_frame)
         if success:

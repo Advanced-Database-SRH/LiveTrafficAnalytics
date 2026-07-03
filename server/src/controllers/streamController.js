@@ -1,5 +1,3 @@
-// src/controllers/streamController.js
-
 const handleVideoStream = (redisImgClient) => async (req, res) => {
     res.writeHead(200, {
         'Content-Type': 'multipart/x-mixed-replace; boundary=frame',

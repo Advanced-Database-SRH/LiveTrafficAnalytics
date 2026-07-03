@@ -12,7 +12,7 @@ const trafficRoutes = require('./src/routes/trafficRoute');
 
 const { handleVideoStream } = require('./src/controllers/streamController');
 
-const path    = require('path');  
+const path = require('path');  
 
 const app = express();
 app.use(cors());
@@ -32,8 +32,6 @@ redisImgClient.on('error', (err) => console.error('Redis Image Client Error:', e
 
 const qdrantClient = new QdrantClient({ url: process.env.QDRANT_URL });
 
-
-
 app.use('/api/traffic', trafficRoutes);
 app.get('/api/traffic/stream', handleVideoStream(redisImgClient));
 app.use('/api/chat', chatRoutes);
@@ -49,7 +47,6 @@ async function startServer() {
         console.log('Redis connected successfully');
 
         await redisImgClient.connect();
-
 
         await qdrantClient.getCollections();
         console.log('Qdrant connected successfully');

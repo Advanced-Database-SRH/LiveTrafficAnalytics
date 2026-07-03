@@ -13,8 +13,6 @@ async function handleChat(req, res) {
 
         const result = await chatService.processChatRequest(imageBuffer, userQuestion);
 
-        // res.status(200).json(result);
-
         return res.status(200).json({
             reply: result.answer,
             evidenceImages: result.evidenceImages,
