@@ -20,7 +20,7 @@ stream_url = "https://www.youtube.com/watch?v=1EiC9bvVGnk"
 stream = CamGear(source=stream_url, stream_mode=True, logging=False, **options).start()
 
 
-model = YOLO("yolo26n.pt") 
+model = YOLO("yolov8n.pt") 
 tracker_data = {}
 BUFFER = 100
 

@@ -1,0 +1,10 @@
+[
+  {
+    "query": "What is the vehicle type breakdown for yesterday?",
+    "expected_ground_truth": "The breakdown consists of 12 Trucks, 45 Cars, and 2 Buses."
+  },
+  {
+    "query": "Was there any unusual activity involving a white pickup truck?",
+    "expected_ground_truth": "Yes, a white pickup truck was sighted under severe weather conditions at 03:00."
+  }
+]
